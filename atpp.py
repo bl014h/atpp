@@ -14,7 +14,7 @@ The public key is embedded below, so a hijacked domain cannot swap it.
   atpp badge  <namespace>/<server> [dir]    # verifies, then writes <dir>/.atpp/badge.svg + attestation
 
 Exit codes: 0 valid and current · 1 invalid (signature, digest or badge mismatch) · 2 valid but
-expired · 3 could not check (usage, network).
+expired · 3 incomplete or could not check (a required check could not run — never a pass).
 
 Needs Python 3.9+ and `pip install cryptography`. Source and key history:
 https://github.com/bl014h/atpp
@@ -369,7 +369,7 @@ def check(env, badge_svg=None, online=True, now=None, repo_dir=None, expect=None
                  f"certified by root {next(iter(ROOT_KEYS))}")
     lines.append(f"claim       {name} @ {clean(pred.get('version'), 64)}: passed {pred.get('passed')}/{pred.get('total')} "
                  f"checks (rules {pred.get('rules_version')}) on {pred.get('as_of')} — static scan, not runtime")
-    status, server = 0, None
+    status, server, incomplete = 0, None, []
     if online:
         try:
             url = (f"{REGISTRY}/{urllib.parse.quote(name, safe='')}/versions/"
@@ -383,7 +383,8 @@ def check(env, badge_svg=None, online=True, now=None, repo_dir=None, expect=None
         except VerifyError:
             raise
         except Exception as e:
-            lines.append(f"subject     not checked — registry unreachable ({e.__class__.__name__})")
+            lines.append(f"subject     NOT CHECKED — registry unreachable ({e.__class__.__name__})")
+            incomplete.append("the registry could not be reached, so the scanned manifest was not re-hashed")
     else:
         lines.append("subject     not checked (--offline)")
     if repo_dir is not None:
@@ -394,14 +395,25 @@ def check(env, badge_svg=None, online=True, now=None, repo_dir=None, expect=None
         if mine and theirs and mine != theirs:
             raise VerifyError(f"these .atpp/ files are the claim for {name}, whose registry listing points at "
                               f"github.com/{theirs} — not this repository (github.com/{mine}). They were copied.")
-        lines.append(f"binding     OK — {name} declares github.com/{theirs}, this repository" if mine and theirs and mine == theirs
-                     else "binding     not checked — " + ("no git remote" if not mine else "registry listing unavailable or declares no GitHub repo"))
+        if mine and theirs and mine == theirs:
+            lines.append(f"binding     OK — {name} declares github.com/{theirs}, this repository")
+        else:
+            why = ("this directory has no git remote" if not mine else
+                   "the registry listing was unreachable" if server is None else "the registry listing declares no GitHub repository")
+            if not online:
+                lines.append("binding     not checked (--offline)")
+            else:
+                lines.append(f"binding     NOT CHECKED — {why}")
+                incomplete.append(f"these .atpp/ files could not be tied to this repository ({why}), so a copy cannot be ruled out")
     if badge_svg is not None:
         if hashlib.sha256(badge_svg).hexdigest() != pred.get("badge_sha256"):
             raise VerifyError(".atpp/badge.svg is not the badge that was signed — it was edited or is from another scan")
         lines.append("badge       OK — .atpp/badge.svg is the signed image")
     if online and log:
-        lines += check_log(env, pred)
+        ll = check_log(env, pred)
+        lines += ll
+        if any(" not checked" in l for l in ll):
+            incomplete.append("the public log could not be checked, so a replayed older claim cannot be ruled out")
     now = now or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     until = _day(pred.get("valid_until"))
     if not until or until < now:
@@ -409,6 +421,11 @@ def check(env, badge_svg=None, online=True, now=None, repo_dir=None, expect=None
         lines.append(f"freshness   EXPIRED — valid until {pred.get('valid_until')}; the claim is historical only")
     else:
         lines.append(f"freshness   current — valid until {until}")
+    if incomplete and status == 0:
+        # Fail closed: an attacker who can make the registry or the log unreachable must not get a pass.
+        status = 3
+        lines.append("result      INCOMPLETE — not a pass: " + "; ".join(incomplete) + ". Retry, or use --offline "
+                     "to accept a signature-only check knowingly.")
     return status, lines
 
 
@@ -588,7 +605,7 @@ def main(argv=None):
     print("\n".join(lines))
     if cmd == "badge":
         if status != 0:
-            print("not writing a badge for an expired claim", file=sys.stderr)
+            print("not writing a badge: the claim is expired or could not be fully checked", file=sys.stderr)
             return status
         st = json.loads(base64.b64decode(env["payload"]))
         p = st["predicate"]

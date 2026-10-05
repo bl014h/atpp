@@ -72,6 +72,9 @@ def _verdict(fn, env_loader):
     except atpp.VerifyError as e:
         # Nothing from a rejected file is echoed: its numbers are exactly what an attacker wants an agent to repeat.
         return {"verdict": "invalid", "reason": atpp.clean(str(e), 300)}
+    if status == 3:
+        return {"verdict": "could_not_check", "reason": "a required check could not run; this is not a pass",
+                "evidence": [atpp.clean(l, 240) for l in lines]}
     out = {"verdict": "valid" if status == 0 else "expired", **_claim_fields(env),
            "evidence": [atpp.clean(l, 240) for l in lines], "meaning": MEANING}
     return out
