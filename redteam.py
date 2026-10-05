@@ -100,16 +100,22 @@ def main():
     # ---- Eirik demo 1: swap the image after it is embedded
     try:
         html = atpp._get(PAGE).decode("utf-8", "replace")
-        srcs = re.findall(r'<img[^>]+src="([^"]+)"', html)
+        srcs = re.findall(r'<img[^>]*?\ssrc="([^"]+)"', html)          # the real src, not data-canonical-src
         pinned = [s for s in srcs if "genuine/.atpp/badge.svg" in s]
         live = [s for s in srcs if "camo.githubusercontent.com" in s]
         record("E1", "PoC demo 1 — swap a **pinned** badge after it is embedded",
                "impossible without a commit: the image is served from the repo itself",
                bool(pinned) and all("camo.githubusercontent.com" not in s for s in pinned),
                f"rendered src: {pinned[0][:90] if pinned else 'pinned badge not found on page'}")
+        cam = ""
+        if live:
+            r = urllib.request.urlopen(urllib.request.Request(live[0], headers={"User-Agent": atpp.UA}), timeout=30)
+            body = r.read().decode("utf-8", "replace")
+            cam = (f"; camo serves it with cache-control {r.headers.get('Cache-Control')!r}, "
+                   f"CSP {r.headers.get('Content-Security-Policy', '')[:50]!r}; safe: {not atpp.svg_problems(body)}")
         record("E2", "PoC demo 1 — swap a **live** badge after it is embedded",
                "possible for whoever controls trust.millenniums.ai (that is why live is opt-in); the claim behind it still has to verify",
-               True, f"{len(live)} camo-proxied image(s) on the page; live badges are labelled as such", kind="info")
+               False, f"{len(live)} camo-proxied live badge(s) on the page{cam}", kind="info")
     except Exception as e:
         record("E1", "PoC demo 1 — pinned badge rendering", "served from the repo", False, f"page unreachable: {e}")
 
@@ -145,7 +151,8 @@ def main():
     ok, msg = blocked(lambda: atpp.check(env, edited.encode(), online=False))
     record("A2", "Edit the committed badge image to show a better score", "INVALID", ok, msg)
 
-    body = json.loads(base64.b64decode(env["payload"])); body["predicate"]["passed"] = body["predicate"]["total"]
+    body = json.loads(base64.b64decode(env["payload"]))
+    body["predicate"]["passed"] = body["predicate"]["total"] + 1          # any change at all, even on a perfect score
     tampered = dict(env, payload=base64.b64encode(atpp.canonical(body)).decode())
     ok, msg = blocked(lambda: atpp.check(tampered, online=False))
     record("A3", "Rewrite the score inside a genuine envelope (keep our signature)", "INVALID", ok, msg)
