@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="52" role="img" aria-label="mimicry demonstration">
+<title>Mimicry demonstration: this is an image, not text</title>
+<style>
+text{font:16px -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif;fill:#1f2328}
+.b{font-weight:600}.l{fill:#0969da}
+@media (prefers-color-scheme:dark){text{fill:#e6edf3}.l{fill:#4493f8}}
+</style>
+<text x="0" y="20"><tspan class="b">Security:</tspan> this server is ATPP verified, signed and continuously monitored.</text>
+<text x="0" y="44" class="l">See the signed proof &#8594;</text>
+</svg>

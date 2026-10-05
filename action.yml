@@ -1,0 +1,54 @@
+name: ATPP pinned badge
+description: Keep a pinned ATPP badge (.atpp/badge.svg + signed attestation) current, or fail CI if it does not verify. Verifies before it writes; opens a PR on change.
+author: Millenniums.AI
+branding:
+  icon: shield
+  color: orange
+inputs:
+  server:
+    description: Your server's name in the MCP registry, e.g. io.github.you/your-server
+    required: true
+  path:
+    description: Repository directory that holds .atpp/
+    default: "."
+  mode:
+    description: "refresh — open a PR when the signed claim changed; verify — fail the job unless .atpp/ verifies for this server and this repository"
+    default: refresh
+  token:
+    description: Token used to push the branch and open the PR (refresh mode)
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+    # No third-party actions: a badge tool that pulled in mutable remote code would repeat the problem it
+    # exists to solve. Pin THIS action by commit SHA in your workflow, not by tag.
+    - name: Install the verifier's one dependency
+      shell: bash
+      run: python3 -m venv "$RUNNER_TEMP/atpp" && "$RUNNER_TEMP/atpp/bin/pip" install --quiet cryptography
+    - name: Verify .atpp/
+      if: inputs.mode == 'verify'
+      shell: bash
+      env:
+        ATPP_SERVER: ${{ inputs.server }}
+        ATPP_PATH: ${{ inputs.path }}
+      run: '"$RUNNER_TEMP/atpp/bin/python" "$GITHUB_ACTION_PATH/atpp.py" verify "$ATPP_PATH" --expect "$ATPP_SERVER"'
+    - name: Refresh .atpp/ and open a PR if the claim changed
+      if: inputs.mode == 'refresh'
+      shell: bash
+      env:
+        ATPP_SERVER: ${{ inputs.server }}
+        ATPP_PATH: ${{ inputs.path }}
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+        "$RUNNER_TEMP/atpp/bin/python" "$GITHUB_ACTION_PATH/atpp.py" badge "$ATPP_SERVER" "$ATPP_PATH"
+        if [ -z "$(git status --porcelain -- "$ATPP_PATH/.atpp")" ]; then echo "pinned badge already current"; exit 0; fi
+        branch="atpp/refresh-$(date -u +%Y-%m-%d)"
+        git checkout -B "$branch"
+        git add -- "$ATPP_PATH/.atpp"
+        git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+          commit -q -m "chore: refresh pinned ATPP badge"
+        git push -q --force origin "$branch"
+        gh pr create --head "$branch" --title "Refresh pinned ATPP badge" \
+          --body "The signed ATPP claim for \`$ATPP_SERVER\` changed. This updates \`.atpp/\`; the verifier checked the signature, the registry hash and the badge before writing. Review the diff like any other change." \
+          || echo "a PR for $branch already exists"

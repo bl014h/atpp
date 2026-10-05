@@ -1,0 +1,16 @@
+name: canary
+# Checks the live ATPP badge service from outside every hour. A failure fails this workflow and GitHub
+# emails the repository owner. Results are public in the Actions tab.
+on:
+  schedule: [{ cron: "17 * * * *" }]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - run: python3 -m venv /tmp/v && /tmp/v/bin/pip install --quiet cryptography
+      - run: /tmp/v/bin/python canary.py --sample 12 --camo | tee -a "$GITHUB_STEP_SUMMARY"

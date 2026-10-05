@@ -1,0 +1,16 @@
+name: redteam
+# Replays the README-badge PoC and the attacks that follow from it against production, daily and on demand.
+# The scorecard is the job summary of each run.
+on:
+  schedule: [{ cron: "41 6 * * *" }]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  redteam:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - run: python3 -m venv /tmp/v && /tmp/v/bin/pip install --quiet cryptography
+      - run: /tmp/v/bin/python redteam.py --out /tmp/RESULTS.md
