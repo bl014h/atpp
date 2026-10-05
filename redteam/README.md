@@ -11,18 +11,18 @@ reads the signed `.atpp/` files, never README images or links.
 
 ## 1. A pinned badge (served from this repository)
 
-[![ATPP scan](genuine/.atpp/badge.svg)](https://trust.millenniums.ai/v/mcp/io.github.github/github-mcp-server)
+[![ATPP scan](genuine/.atpp/badge.svg)](https://trust.redthreadsec.com/v/mcp/io.github.github/github-mcp-server)
 
 This is a real, current claim for `io.github.github/github-mcp-server`, copied here. GitHub serves the image from this repository,
 so nothing outside the repo can change it — demo 1 of the PoC does not apply. But because it was copied,
 `python3 atpp.py verify redteam/genuine` **fails**: the claim belongs to a server whose registry listing points
 at a different repository.
 
-## 2. A live badge (served by trust.millenniums.ai, through GitHub's image proxy)
+## 2. A live badge (served by trust.redthreadsec.com, through GitHub's image proxy)
 
-[![ATPP live](https://trust.millenniums.ai/badge/mcp/io.github.github/github-mcp-server.svg)](https://trust.millenniums.ai/v/mcp/io.github.github/github-mcp-server)
+[![ATPP live](https://trust.redthreadsec.com/badge/mcp/io.github.github/github-mcp-server.svg)](https://trust.redthreadsec.com/v/mcp/io.github.github/github-mcp-server)
 
-This one *can* be swapped by whoever controls trust.millenniums.ai, which is why it is optional. Its claim still
+This one *can* be swapped by whoever controls trust.redthreadsec.com, which is why it is optional. Its claim still
 has to verify against a key the server does not hold.
 
 ## 3. A forged lookalike (served from this repository)

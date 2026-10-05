@@ -19,7 +19,7 @@ from cryptography.hazmat.primitives.asymmetric import ed25519
 
 PAGE = "https://github.com/bl014h/atpp/blob/main/redteam/README.md"
 HERE = os.path.dirname(os.path.abspath(__file__))
-ALLOWED_HOSTS = {"trust.millenniums.ai", "registry.modelcontextprotocol.io", "raw.githubusercontent.com", "rekor.sigstore.dev"}
+ALLOWED_HOSTS = {"trust.redthreadsec.com", "registry.modelcontextprotocol.io", "raw.githubusercontent.com", "rekor.sigstore.dev"}
 results = []
 
 
@@ -118,7 +118,7 @@ def main():
             cam = (f"; camo serves it with cache-control {r.headers.get('Cache-Control')!r}, "
                    f"CSP {r.headers.get('Content-Security-Policy', '')[:50]!r}; safe: {not atpp.svg_problems(body)}")
         record("E2", "PoC demo 1 — swap a **live** badge after it is embedded",
-               "possible for whoever controls trust.millenniums.ai (that is why live is opt-in); the claim behind it still has to verify",
+               "possible for whoever controls trust.redthreadsec.com (that is why live is opt-in); the claim behind it still has to verify",
                False, f"{len(live)} camo-proxied live badge(s) on the page{cam}", kind="info")
     except Exception as e:
         record("E1", "PoC demo 1 — pinned badge rendering", "served from the repo", False, f"page unreachable: {e}")
@@ -178,7 +178,7 @@ def main():
         return real(url)
     with intercept(evil_manifest):
         ok, msg = blocked(lambda: atpp.check(env, expect=name))
-    record("A5", "Compromised trust.millenniums.ai serves a doctored daily manifest", "INVALID (manifest ≠ public log)", ok, msg)
+    record("A5", "Compromised trust.redthreadsec.com serves a doctored daily manifest", "INVALID (manifest ≠ public log)", ok, msg)
 
     hist = sorted(f for f in os.listdir(os.path.join(HERE, "redteam", "history")) if f.endswith(".json")) \
         if os.path.isdir(os.path.join(HERE, "redteam", "history")) else []
@@ -238,7 +238,7 @@ def main():
             atpp.check(env, expect=name)
         except atpp.VerifyError:
             pass
-    record("A12", "Lookalike verify domain (README links to `trust-millenniums.ai`)",
+    record("A12", "Lookalike verify domain (README links to `trust-redthreadsec.com`)",
            "the verifier ignores README links; it only talks to pinned hosts", hosts <= ALLOWED_HOSTS, f"hosts contacted: {sorted(hosts)}")
 
     ns, srv = name.split("/", 1)

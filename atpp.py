@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""atpp — check an Agentic Trust & Protection Platform (ATPP) scan claim without trusting Millenniums.AI.
+"""atpp — check an Agentic Trust & Protection Platform (ATPP) scan claim without trusting Redthread.
 
 A badge image is a pointer, never proof. The claim is an in-toto Statement in a DSSE envelope,
 signed with Ed25519, bound to the sha256 of the exact MCP registry manifest that was scanned.
 The public key is embedded below, so a hijacked domain cannot swap it.
 
   atpp verify <repo-dir>                    # reads <dir>/.atpp/attestation.dsse.json (+ badge.svg)
-  atpp verify <namespace>/<server>          # fetches the current attestation from trust.millenniums.ai
+  atpp verify <namespace>/<server>          # fetches the current attestation from trust.redthreadsec.com
   atpp verify-runtime <tenant>/<agent> [--pin .atpp/workspace-key.json]   # a runtime agent claim, key pinned on first use
   atpp disputes [<namespace>/<server>]      # the signed public log of disputed scores and their outcomes
   atpp report mcp-scan|mcp-names              # the public aggregate report / search index match their signed copies
@@ -40,8 +40,8 @@ DISPUTE_TYPE = "application/vnd.millenniums.atpp-dispute+json"
 REPORTS = {"mcp-scan": "/mcp-scan.json", "mcp-names": "/mcp-names.json"}
 STATEMENT_TYPE = "https://in-toto.io/Statement/v1"
 PREDICATE_TYPE = "https://millenniums.ai/atpp/scan/v1"
-TRUST = "https://trust.millenniums.ai"
-APP = "https://scan.millenniums.ai"
+TRUST = "https://trust.redthreadsec.com"
+APP = "https://app.redthreadsec.com"
 REGISTRY = "https://registry.modelcontextprotocol.io/v0/servers"
 UA = "atpp/1.0 (+https://github.com/bl014h/atpp)"
 
@@ -310,7 +310,7 @@ def _git_remote(repo_dir):
 
 def check_log(env, pred):
     """Is this envelope in the latest day's manifest, and does that manifest match the public log and
-    its Rekor anchor? Catches a compromised trust.millenniums.ai replaying an older, better-scoring
+    its Rekor anchor? Catches a compromised trust.redthreadsec.com replaying an older, better-scoring
     claim (rollback) or serving a manifest that differs from the one committed publicly. Returns lines."""
     lines = []
     try:
@@ -323,7 +323,7 @@ def check_log(env, pred):
     except Exception as e:
         return [f"log         not checked — manifest for {date} unreachable ({e.__class__.__name__})"]
     if envelope_sha256(man_env) != log.get("manifest_sha256"):
-        raise VerifyError(f"trust.millenniums.ai serves a {date} manifest that differs from the one committed to "
+        raise VerifyError(f"trust.redthreadsec.com serves a {date} manifest that differs from the one committed to "
                           f"the public log — do not trust its claims")
     man = open_envelope(man_env, MANIFEST_TYPE)
     mine = envelope_sha256(env)

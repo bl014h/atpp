@@ -1,5 +1,5 @@
 {
-  "issuer": "https://trust.millenniums.ai",
+  "issuer": "https://trust.redthreadsec.com",
   "about": "Ed25519 keys behind ATPP attestations. Verifiers pin only the ROOT key; it signs atpp-keylist.dsse.json, which lists the scan keys (with validity windows) and revocations. This unsigned file mirrors that list for humans and can only ever revoke.",
   "keys": {
     "atpp-scan-2026-10": {

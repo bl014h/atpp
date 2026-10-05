@@ -1,4 +1,4 @@
-# atpp — check an ATPP badge claim without trusting Millenniums.AI
+# atpp — check an ATPP badge claim without trusting Redthread
 
 Any README badge is an image fetched from somebody's server, and the picture can show whatever that
 server decides. So an **ATPP** (Agentic Trust & Protection Platform) claim does not live in the image.
@@ -8,7 +8,7 @@ It lives in a signed file:
   [DSSE envelope](https://github.com/secure-systems-lab/dsse), signed with **Ed25519**;
 - bound to the **sha256 of the exact MCP registry manifest** that was scanned, which you can re-hash
   yourself from `registry.modelcontextprotocol.io`;
-- signed on our scan host. The servers behind `trust.millenniums.ai` hold only the public key, so a
+- signed on our scan host. The servers behind `trust.redthreadsec.com` hold only the public key, so a
   compromised web server, DNS record or deploy cannot mint a claim that verifies.
 
 A level-1 claim is a **static scan of a published manifest** ("passed N of M published checks on
@@ -64,7 +64,7 @@ python3 atpp.py badge io.github.example/server .     # verifies first, then writ
 writes `.atpp/badge.svg` and `.atpp/attestation.dsse.json` and prints the README line. Commit both.
 Your README then renders with no request to us, every change is a commit you review, and the badge
 states its version and date, so at worst it is old and says how old. A live badge
-(`https://trust.millenniums.ai/badge/mcp/<namespace>/<server>.svg`) is available if you prefer one
+(`https://trust.redthreadsec.com/badge/mcp/<namespace>/<server>.svg`) is available if you prefer one
 that follows each re-scan; on GitHub it lags by about 10 minutes because of the image cache.
 
 ## Runtime agents (levels 2/3)
@@ -123,16 +123,16 @@ can be rotated or revoked without anyone updating the script; an older list (low
 | scan | `atpp-scan-2026-10` | `20P9I6y6X6mQztS3IJTU/4CNaqg/FjcpouXkPsrCyVo=` | `a210db7bf7f8b382` | 2026-10-05 → 2027-10-05 |
 
 A claim signed by a scan key outside its validity window fails. The unsigned
-`https://trust.millenniums.ai/.well-known/atpp-keys.json` mirrors this for humans and can only revoke.
+`https://trust.redthreadsec.com/.well-known/atpp-keys.json` mirrors this for humans and can only revoke.
 
 ## Log
 
 Every day the scanner signs a manifest listing the sha256 of every envelope it issued, commits that
 manifest's sha256 to [`log/`](log/) (`log/latest.json` and `log/<date>.json`), and records a signed anchor of
 it in [Sigstore Rekor](https://search.sigstore.dev/), a public transparency log nobody here controls. The
-manifest itself is served at `https://trust.millenniums.ai/v/log/<date>.json`. A swapped, backdated or
+manifest itself is served at `https://trust.redthreadsec.com/v/log/<date>.json`. A swapped, backdated or
 rolled-back claim will not match a manifest whose hash is already in this repo's history and in Rekor.
 
 ## Report a problem
 
-security@millenniums.ai · [disclosure policy](https://trust.millenniums.ai/security)
+security@millenniums.ai · [disclosure policy](https://trust.redthreadsec.com/security)

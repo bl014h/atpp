@@ -1,6 +1,6 @@
 name: ATPP pinned badge
 description: Keep a pinned ATPP badge (.atpp/badge.svg + signed attestation) current, or fail CI if it does not verify. Verifies before it writes; opens a PR on change.
-author: Millenniums.AI
+author: Redthread
 branding:
   icon: shield
   color: orange
