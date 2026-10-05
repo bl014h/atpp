@@ -7,6 +7,7 @@ The public key is embedded below, so a hijacked domain cannot swap it.
 
   atpp verify <repo-dir>                    # reads <dir>/.atpp/attestation.dsse.json (+ badge.svg)
   atpp verify <namespace>/<server>          # fetches the current attestation from trust.millenniums.ai
+  atpp report mcp-scan|mcp-names              # the public aggregate report / search index match their signed copies
   options: --offline (signature, badge, expiry only) · --no-log · --expect <namespace>/<server>
   atpp badge  <namespace>/<server> [dir]    # verifies, then writes <dir>/.atpp/badge.svg + attestation
 
@@ -26,6 +27,8 @@ KEYS = {"atpp-scan-2026-10": "20P9I6y6X6mQztS3IJTU/4CNaqg/FjcpouXkPsrCyVo="}
 
 PAYLOAD_TYPE = "application/vnd.in-toto+json"
 MANIFEST_TYPE = "application/vnd.millenniums.atpp-manifest+json"
+REPORT_TYPE = "application/vnd.millenniums.atpp-report+json"
+REPORTS = {"mcp-scan": "/mcp-scan.json", "mcp-names": "/mcp-names.json"}
 STATEMENT_TYPE = "https://in-toto.io/Statement/v1"
 PREDICATE_TYPE = "https://millenniums.ai/atpp/scan/v1"
 TRUST = "https://trust.millenniums.ai"
@@ -358,6 +361,35 @@ def check(env, badge_svg=None, online=True, now=None, repo_dir=None, expect=None
     return status, lines
 
 
+def check_report(kind):
+    """The public aggregate report or search index: the plain JSON the site reads must be exactly what was
+    signed, and the signed envelope must be the one listed in the latest manifest committed to the public log."""
+    path = REPORTS[kind]
+    plain = json.loads(_get(f"{TRUST}{path}"))
+    env = json.loads(_get(f"{TRUST}{path}.dsse"))
+    signed = open_envelope(env, REPORT_TYPE)
+    if signed != plain:
+        raise VerifyError(f"{path} differs from its signed copy — the served report was altered")
+    lines = [f"report      OK — {path} matches its signed copy ({env['signatures'][0]['keyid']})"]
+    try:
+        log = json.loads(_get(f"{LOG_RAW}/latest.json"))
+        man_env = json.loads(_get(f"{TRUST}/v/log/{log['date']}.json"))
+        if envelope_sha256(man_env) != log.get("manifest_sha256"):
+            raise VerifyError("the served manifest differs from the one committed to the public log")
+        listed = (open_envelope(man_env, MANIFEST_TYPE).get("reports") or {}).get(kind)
+        if listed == envelope_sha256(env):
+            lines.append(f"log         OK — listed in the {log['date']} manifest committed to github.com/bl014h/atpp")
+        elif listed is None:
+            lines.append(f"log         the {log['date']} manifest predates signed reports")
+        else:
+            raise VerifyError(f"{path} is not the report listed in the {log['date']} manifest (stale or replaced)")
+    except VerifyError:
+        raise
+    except Exception as e:
+        lines.append(f"log         not checked — {e.__class__.__name__}")
+    return 0, lines
+
+
 def fetch_envelope(name):
     ns, _, srv = name.partition("/")
     if not ns or not srv:
@@ -379,6 +411,17 @@ def main(argv=None):
     online, log = "--offline" not in a, "--no-log" not in a
     a = [x for x in a if x not in ("--offline", "--no-log")]
     expect = _opt(a, "--expect")
+    if len(a) == 2 and a[0] == "report" and a[1] in REPORTS:
+        try:
+            _, lines = check_report(a[1])
+        except VerifyError as e:
+            print(f"INVALID — {e}")
+            return 1
+        except Exception as e:
+            print(f"could not check: {e}", file=sys.stderr)
+            return 3
+        print("\n".join(lines))
+        return 0
     if len(a) < 2 or a[0] not in ("verify", "badge"):
         print(__doc__.strip().split("\n\n")[1], file=sys.stderr)
         return 3
