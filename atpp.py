@@ -251,6 +251,17 @@ def _get(url, timeout=20):
         return r.read()
 
 
+def _registry(url):
+    """The registry intermittently takes ~40 s per request; one patient retry before giving up (and a
+    give-up is never a pass — see INCOMPLETE in check())."""
+    for attempt in (1, 2):
+        try:
+            return json.loads(_get(url, timeout=60))["server"]
+        except Exception:
+            if attempt == 2:
+                raise
+
+
 def _revoked():
     """Revocations published by the issuer. This list can only ever REMOVE trust in a pinned key; a key
     that appears here but not in KEYS above is never trusted."""
@@ -374,7 +385,7 @@ def check(env, badge_svg=None, online=True, now=None, repo_dir=None, expect=None
         try:
             url = (f"{REGISTRY}/{urllib.parse.quote(name, safe='')}/versions/"
                    f"{urllib.parse.quote(str(pred.get('version')), safe='')}")
-            server = json.loads(_get(url))["server"]
+            server = _registry(url)
             live = manifest_sha256(server)
             if live != digest:
                 raise VerifyError(f"registry manifest for {name} @ {pred.get('version')} has changed since the "

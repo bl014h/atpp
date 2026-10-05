@@ -92,8 +92,12 @@ def main():
     write_atpp(good, env, svg, remote=f"https://github.com/{repo}.git")
     try:
         st, lines = atpp.check(env, svg.encode(), repo_dir=good, expect=name)
-        record("C0", f"Control: genuine claim for `{name}` in a repo whose remote is `{repo}`", "verifies",
-               st == 0, "; ".join(l.split("—")[0].strip() for l in lines), kind="block")
+        if st == 3:      # the registry or log was unreachable from here: the verifier rightly refused to pass
+            record("C0", f"Control: genuine claim for `{name}` in a repo whose remote is `{repo}`", "verifies",
+                   False, "INCOMPLETE from this runner (registry/log unreachable) — correctly not a pass", kind="info")
+        else:
+            record("C0", f"Control: genuine claim for `{name}` in a repo whose remote is `{repo}`", "verifies",
+                   st == 0, "; ".join(l.split("—")[0].strip() for l in lines), kind="block")
     except atpp.VerifyError as e:
         record("C0", f"Control: genuine claim for `{name}`", "verifies", False, str(e))
 
