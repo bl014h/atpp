@@ -114,6 +114,16 @@ def check_keys(rep):
         rep.info(f"well-known lists keys the verifier does not pin (ignored by design): {sorted(extra)}")
     rep.ok("well-known keys consistent with the pinned list")
     try:
+        k, w, r = atpp._keylist()
+        if not k:
+            rep.bad("root-signed key list unreachable or empty")
+        elif set(atpp.KEYS) - set(k) - r:
+            rep.bad("the published key list drops a scan key without revoking it")
+        else:
+            rep.ok(f"root-signed key list verifies (serial >= {atpp.KEYLIST_SERIAL}); scan keys {sorted(k)}; revoked {sorted(r)}")
+    except atpp.VerifyError as e:
+        rep.bad(f"key list: {e}")
+    try:
         _, _, sec = get(f"{TRUST}/.well-known/security.txt")
         m = re.search(r"^Expires:\s*(\S+)", sec.decode(), re.M)
         if not m or m.group(1)[:10] < datetime.now(timezone.utc).strftime("%Y-%m-%d"):

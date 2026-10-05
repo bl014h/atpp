@@ -1,14 +1,25 @@
 {
   "issuer": "https://trust.millenniums.ai",
-  "about": "Ed25519 keys that sign ATPP level-1 scan attestations (in-toto Statement v1 in a DSSE envelope). Verifiers pin these; this file can only revoke a key, never add one.",
+  "about": "Ed25519 keys behind ATPP attestations. Verifiers pin only the ROOT key; it signs atpp-keylist.dsse.json, which lists the scan keys (with validity windows) and revocations. This unsigned file mirrors that list for humans and can only ever revoke.",
   "keys": {
     "atpp-scan-2026-10": {
       "alg": "Ed25519",
       "public_key": "20P9I6y6X6mQztS3IJTU/4CNaqg/FjcpouXkPsrCyVo=",
       "fingerprint_sha256": "a210db7bf7f8b382",
       "created": "2026-10-05",
-      "use": "level-1 MCP registry scan attestations and the daily manifest"
+      "use": "level-1 MCP registry scan attestations and the daily manifest",
+      "not_before": "2026-10-05",
+      "not_after": "2027-10-05"
     }
   },
-  "revoked": []
+  "revoked": [],
+  "root": {
+    "atpp-root-2026": {
+      "alg": "Ed25519",
+      "public_key": "s/lMHiubuPh/z/YWGNcxkvqL+o7KcY0WFdKWq3s7Nuc=",
+      "fingerprint_sha256": "f5ba2588c2767bb8",
+      "created": "2026-10-05",
+      "use": "signs the scan key list only; kept offline"
+    }
+  }
 }

@@ -40,6 +40,21 @@ Options: `--offline` (1, 4 and 6 only) · `--no-log` · `--expect <namespace>/<s
 
 Exit codes: `0` valid and current · `1` invalid · `2` valid but expired · `3` could not check.
 
+## Let your agent check before it installs (MCP)
+
+`atpp_mcp.py` is an MCP server (stdio, only needs `cryptography`) that gives an agent two tools:
+`verify_mcp_server` (the current signed claim for a registry listing) and `verify_repo_atpp` (a repo's pinned
+`.atpp/` files). They run the same checks as `atpp.py verify` and return a verdict: `valid`, `expired`,
+`invalid`, `no_signed_claim` or `could_not_check`.
+
+```json
+{"mcpServers": {"atpp": {"command": "python3", "args": ["/path/to/atpp_mcp.py"]}}}
+```
+
+A valid result means "this exact registry manifest passed N of M published static checks on DATE", never
+"safe". Text a server's publisher controls comes back only as `detail_untrusted`, with control characters
+stripped and length capped, and nothing from a rejected claim is echoed.
+
 ## Pinned badges (the default)
 
 ```bash
@@ -51,6 +66,24 @@ Your README then renders with no request to us, every change is a commit you rev
 states its version and date, so at worst it is old and says how old. A live badge
 (`https://trust.millenniums.ai/badge/mcp/<namespace>/<server>.svg`) is available if you prefer one
 that follows each re-scan; on GitHub it lags by about 10 minutes because of the image cache.
+
+## Runtime agents (levels 2/3)
+
+```bash
+python3 atpp.py verify-runtime <tenant>/<agent> --pin .atpp/workspace-key.json
+```
+
+A runtime claim is signed by the workspace's key, which our app serves. The first run pins that key in the
+file you name (commit it); any later run fails if the served key differs, so a compromised server cannot
+swap the key to vouch for an agent. Exit `1` if the agent is revoked, `2` if there is no current claim.
+
+## Disputes
+
+```bash
+python3 atpp.py disputes [<namespace>/<server>]
+```
+
+Every disputed score and its outcome is a signed, append-only record in [`disputes/`](disputes/).
 
 ## Keep it current in CI
 
@@ -79,12 +112,18 @@ The action uses no third-party actions and passes inputs through environment var
 
 ## Keys
 
-| keyid | Ed25519 public key | sha256 fingerprint |
-|---|---|---|
-| `atpp-scan-2026-10` | `20P9I6y6X6mQztS3IJTU/4CNaqg/FjcpouXkPsrCyVo=` | `a210db7bf7f8b382` |
+Trust is pinned to one **offline root key**. It signs nothing but the scan-key list
+([`atpp-keylist.dsse.json`](atpp-keylist.dsse.json)): which scan keys are valid, for which dates, and which
+are revoked, with a serial number. `atpp.py` embeds a root-signed copy and pins only the root, so a scan key
+can be rotated or revoked without anyone updating the script; an older list (lower serial) is refused.
 
-The same list is served at `https://trust.millenniums.ai/.well-known/atpp-keys.json`. That file can
-only **revoke** a key; a new key is trusted only once it ships in `atpp.py` here.
+| role | keyid | Ed25519 public key | sha256 fingerprint | valid |
+|---|---|---|---|---|
+| root (offline) | `atpp-root-2026` | `s/lMHiubuPh/z/YWGNcxkvqL+o7KcY0WFdKWq3s7Nuc=` | `f5ba2588c2767bb8` | — |
+| scan | `atpp-scan-2026-10` | `20P9I6y6X6mQztS3IJTU/4CNaqg/FjcpouXkPsrCyVo=` | `a210db7bf7f8b382` | 2026-10-05 → 2027-10-05 |
+
+A claim signed by a scan key outside its validity window fails. The unsigned
+`https://trust.millenniums.ai/.well-known/atpp-keys.json` mirrors this for humans and can only revoke.
 
 ## Log
 

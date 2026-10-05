@@ -1,0 +1,10 @@
+{
+ "payloadType": "application/vnd.millenniums.atpp-keylist+json",
+ "payload": "eyJfdHlwZSI6Imh0dHBzOi8vbWlsbGVubml1bXMuYWkvYXRwcC9rZXlsaXN0L3YxIiwiaXNzdWVkIjoiMjAyNi0xMC0wNSIsImtleXMiOnsiYXRwcC1zY2FuLTIwMjYtMTAiOnsibm90X2FmdGVyIjoiMjAyNy0xMC0wNSIsIm5vdF9iZWZvcmUiOiIyMDI2LTEwLTA1IiwicHVibGljX2tleSI6IjIwUDlJNnk2WDZtUXp0UzNJSlRVLzRDTmFxZy9GamNwb3VYa1BzckN5Vm89IiwidXNlIjoibGV2ZWwtMSBNQ1AgcmVnaXN0cnkgc2NhbiBhdHRlc3RhdGlvbnMgYW5kIHRoZSBkYWlseSBtYW5pZmVzdCJ9fSwicmV2b2tlZCI6W10sInJvb3QiOiJhdHBwLXJvb3QtMjAyNiIsInNlcmlhbCI6MX0=",
+ "signatures": [
+  {
+   "keyid": "atpp-root-2026",
+   "sig": "Gl75GDDIyykjj9lerVUWjCpMFfjhefAcdS2zLshjHEbW7uoYusWEg/vmG/MwpBmI5JaxCkTm18ePwwW/vZ75Bw=="
+  }
+ ]
+}
