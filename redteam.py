@@ -212,8 +212,11 @@ def main():
     w = int(re.search(r'width="(\d+)"', long).group(1))
     record("A10", "Oversized version string (5,000 chars) to blow up the badge", "width capped", w <= 450, f"badge width {w}px")
 
-    status, lines = atpp.check(env, svg.encode(), online=False, now=(datetime.strptime(pred["valid_until"], "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d"))
-    record("A11", "Use a claim after its expiry", "reported EXPIRED (exit 2)", status == 2, lines[-1])
+    try:
+        status, lines = atpp.check(env, online=False, now=(datetime.strptime(pred["valid_until"], "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d"))
+        record("A11", "Use a claim after its expiry", "reported EXPIRED (exit 2)", status == 2, lines[-1])
+    except atpp.VerifyError as e:
+        record("A11", "Use a claim after its expiry", "reported EXPIRED (exit 2)", False, f"unexpected: {e}")
 
     hosts = set()
     def spy(url, real):

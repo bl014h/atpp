@@ -410,8 +410,13 @@ def main(argv=None):
         out = os.path.join(a[2] if len(a) > 2 else ".", ".atpp")
         os.makedirs(out, exist_ok=True)
         name = st["subject"][0]["name"].removeprefix("mcp:")
-        open(os.path.join(out, "badge.svg"), "w", encoding="utf-8").write(
-            render_badge(name, p["version"], p["passed"], p["total"], p["as_of"], p["rules_version"]))
+        svg_out = render_badge(name, p["version"], p["passed"], p["total"], p["as_of"], p["rules_version"])
+        if hashlib.sha256(svg_out.encode("utf-8")).hexdigest() != p.get("badge_sha256"):
+            # The claim was signed by a different badge renderer than this one; writing would produce a
+            # badge that fails verification. The next daily scan re-signs with the current renderer.
+            print("not writing: this claim was signed with a different badge renderer; retry after the next daily scan", file=sys.stderr)
+            return 3
+        open(os.path.join(out, "badge.svg"), "w", encoding="utf-8").write(svg_out)
         json.dump(env, open(os.path.join(out, "attestation.dsse.json"), "w"), indent=1)
         ns, _, srv = name.partition("/")
         print(f"\nwrote {out}/badge.svg and {out}/attestation.dsse.json — README line:\n"
