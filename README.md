@@ -135,4 +135,4 @@ rolled-back claim will not match a manifest whose hash is already in this repo's
 
 ## Report a problem
 
-security@millenniums.ai · [disclosure policy](https://trust.redthreadsec.com/security)
+security@redthreadsec.com · [disclosure policy](https://trust.redthreadsec.com/security)
