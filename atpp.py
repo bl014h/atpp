@@ -12,6 +12,7 @@ The public key is embedded below, so a hijacked domain cannot swap it.
   atpp report mcp-scan|mcp-names              # the public aggregate report / search index match their signed copies
   options: --offline (signature, badge, expiry only) · --no-log · --expect <namespace>/<server>
   atpp badge  <namespace>/<server> [dir]    # verifies, then writes <dir>/.atpp/badge.svg + attestation
+  atpp check-config [config.json ...]       # every MCP server in your Claude/Cursor/VS Code/Windsurf config, checked
 
 Exit codes: 0 valid and current · 1 invalid (signature, digest or badge mismatch) · 2 valid but
 expired · 3 incomplete or could not check (a required check could not run — never a pass).
@@ -537,6 +538,111 @@ def check_disputes(server=None):
     return 0, lines or ["no disputes on record" + (f" for {server}" if server else "")]
 
 
+# ------------------------------------------------------------------ check-config (the installer's view)
+CONFIG_PATHS = ["~/Library/Application Support/Claude/claude_desktop_config.json", "~/.config/Claude/claude_desktop_config.json",
+                "~/AppData/Roaming/Claude/claude_desktop_config.json", "~/.claude.json", ".mcp.json", "~/.cursor/mcp.json",
+                ".cursor/mcp.json", ".vscode/mcp.json", "~/.codeium/windsurf/mcp_config.json"]
+_SKIP_VALUE = {"-e", "--env", "-v", "--volume", "--name", "-p", "--publish", "--network", "--mount", "--from", "--with", "-w"}
+
+
+def install_key(kind, ident):
+    """One normalized key per install target, shared with the scanner: npm/pypi/oci package without its
+    version or tag, or url:<host> for a remote endpoint."""
+    i = (ident or "").strip().lower()
+    if kind == "url":
+        return "url:" + (urllib.parse.urlparse(i).hostname or "") if "//" in i else None
+    if kind == "npm" and i.startswith("@"):
+        scope, _, rest = i.partition("/")
+        i = scope + "/" + rest.split("@")[0]
+    elif kind == "oci":
+        i = i.split("@")[0]
+        i = i.rsplit(":", 1)[0] if ":" in i.rsplit("/", 1)[-1] else i
+    else:
+        i = re.split(r"[=<>@\[]", i)[0]
+    return f"{kind}:{i}" if i else None
+
+
+def entry_key(e):
+    """The install key behind one config entry (a stdio command or a remote URL), or None."""
+    if e.get("url") or e.get("serverUrl"):
+        return install_key("url", e.get("url") or e.get("serverUrl"))
+    cmd = os.path.basename(str(e.get("command") or "")).lower()
+    args = [str(x) for x in e.get("args") or []]
+    if cmd in ("pnpm", "yarn") and args[:1] in (["dlx"], ["exec"]):
+        cmd, args = "npx", args[1:]
+    kind = {"npx": "npm", "bunx": "npm", "uvx": "pypi", "pipx": "pypi", "docker": "oci", "podman": "oci"}.get(cmd)
+    if not kind:
+        return None
+    if cmd in ("pipx", "docker", "podman"):
+        args = args[1:] if args[:1] in (["run"],) else []
+    skip = False
+    for x in args:
+        if skip:
+            skip = False
+        elif x in _SKIP_VALUE:
+            skip = True
+        elif not x.startswith("-"):
+            return install_key(kind, x)
+    return None
+
+
+def config_servers(paths):
+    """(file, name, entry) for every MCP server in the given config files (both mcpServers and VS Code servers)."""
+    out = []
+    for p in paths:
+        fp = os.path.expanduser(p)
+        if not os.path.isfile(fp):
+            continue
+        try:
+            d = json.load(open(fp, encoding="utf-8"))
+        except Exception:
+            continue
+        blocks = [d.get("mcpServers"), d.get("servers"), (d.get("mcp") or {}).get("servers")]
+        blocks += [pr.get("mcpServers") for pr in (d.get("projects") or {}).values() if isinstance(pr, dict)]
+        for b in blocks:
+            for name, e in (b or {}).items():
+                if isinstance(e, dict):
+                    out.append((p, name, e))
+    return out
+
+
+def check_config(paths=None):
+    """The installer's view: for each configured server, the registry listing behind it and its signed score."""
+    found = config_servers(paths or CONFIG_PATHS)
+    if not found:
+        return 3, ["no MCP config found — pass the file: atpp check-config path/to/mcp.json"]
+    index = open_envelope(json.loads(_get(f"{TRUST}/mcp-names.json.dsse")), REPORT_TYPE)
+    by_key = {}
+    for row in index.get("n") or []:
+        for k in (row[3] if len(row) > 3 else []):
+            by_key.setdefault(k, row)
+    lines, worst = [f"index       OK — signed registry index as of {index.get('as_of')}"], 0
+    for f, name, e in found:
+        k = entry_key(e)
+        row = by_key.get(k) if k else None
+        if not row:
+            why = "local command, not from a package registry" if not k else "not in the official MCP registry: nobody has scanned it"
+            lines.append(f"?  {name:24} {why}")
+            worst = max(worst, 2)
+            continue
+        listing, passed, total = row[0], row[1], row[2]
+        note = ""
+        try:
+            st = open_envelope(fetch_envelope(listing))
+            for cid, ok, detail in st["predicate"]["checks"]:
+                if cid == "target-stable" and not ok:
+                    note, worst = " · LISTING SWAP: " + clean(detail, 120), max(worst, 1)
+        except Exception as ex:
+            note = f" · detail not checked ({ex.__class__.__name__})"
+        mark = "ok" if passed == total and not note.startswith(" · LISTING") else "!!"
+        if mark == "!!":
+            worst = max(worst, 1)
+        lines.append(f"{mark} {name:24} {listing} · passed {passed}/{total}{note}")
+        lines.append(f"   {'':24} {TRUST}/v/mcp/{listing}")
+    lines.append("static registry scan, not a runtime claim · ok = passed every check · !! = review before trusting · ? = unscanned")
+    return worst, lines
+
+
 def fetch_envelope(name):
     ns, _, srv = name.partition("/")
     if not ns or not srv:
@@ -581,6 +687,17 @@ def main(argv=None):
             return 3
         print("\n".join(lines))
         return 0
+    if a and a[0] == "check-config":
+        try:
+            status, lines = check_config(a[1:] or None)
+        except VerifyError as e:
+            print(f"INVALID — {e}")
+            return 1
+        except Exception as e:
+            print(f"could not check: {e}", file=sys.stderr)
+            return 3
+        print("\n".join(lines))
+        return status
     if len(a) == 2 and a[0] == "report" and a[1] in REPORTS:
         try:
             _, lines = check_report(a[1])

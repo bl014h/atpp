@@ -14,6 +14,23 @@ It lives in a signed file:
 A level-1 claim is a **static scan of a published manifest** ("passed N of M published checks on
 DATE"). It is not a runtime claim and says nothing about what a server does once installed.
 
+## Check the MCP servers you already installed
+
+```bash
+pip install cryptography
+curl -sO https://raw.githubusercontent.com/bl014h/atpp/main/atpp.py
+python3 atpp.py check-config                  # Claude Desktop, Claude Code, Cursor, VS Code, Windsurf configs
+python3 atpp.py check-config path/to/mcp.json # or any config file
+```
+
+For each configured server it finds the official-registry listing behind the package or URL (from the
+signed registry index), then prints its signed score and flags a **listing swap**: the name now reaches a
+different domain or package owner than when it was first published
+([research](https://redthreadsec.com/blog/mcp-listing-swap)). `ok` = passed every check, `!!` = review
+before trusting, `?` = not in the registry, so nobody has scanned it. Your config file is read locally and never
+uploaded; the script downloads the public index, then fetches the signed claim for each registry
+listing it matched (so our server sees those public listing names, nothing else).
+
 ## Verify
 
 ```bash
