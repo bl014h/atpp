@@ -184,6 +184,8 @@ def statement(name, score, issuer=TRUST):
             "checks": [[c["id"], bool(c["pass"]), c["detail"]] for c in score["checks"]],
             "as_of": score["as_of"], "valid_until": score["valid_until"], "issuer": issuer,
             "registry": "registry.modelcontextprotocol.io", "scope": "static manifest scan — not a runtime claim"}
+    if score.get("artifacts"):           # [type, identifier, version, digest, provenance repo] as resolved at scan time
+        pred["artifacts"] = score["artifacts"]
     svg = render_badge(name, pred["version"], pred["passed"], pred["total"], pred["as_of"], pred["rules_version"])
     pred["badge_sha256"] = hashlib.sha256(svg.encode("utf-8")).hexdigest()
     return {"_type": STATEMENT_TYPE, "predicateType": PREDICATE_TYPE, "predicate": pred,
@@ -626,12 +628,16 @@ def check_config(paths=None):
             worst = max(worst, 2)
             continue
         listing, passed, total = row[0], row[1], row[2]
-        note = ""
+        note, pins = "", []
         try:
             st = open_envelope(fetch_envelope(listing))
             for cid, ok, detail in st["predicate"]["checks"]:
                 if cid == "target-stable" and not ok:
                     note, worst = " · LISTING SWAP: " + clean(detail, 120), max(worst, 1)
+            for t, ident, ver, digest, prov in st["predicate"].get("artifacts") or []:
+                pin = f"{ident}@{digest}" if t == "oci" and digest else f"{ident}@{ver}"
+                pins.append(f"pin {t} {clean(pin, 160)}" + (f" · built by {clean(prov, 80)} (Sigstore provenance)" if prov else " · no build provenance")
+                            + (f" · {clean(digest, 40)}" if t != "oci" and digest else ""))
         except Exception as ex:
             note = f" · detail not checked ({ex.__class__.__name__})"
         mark = "ok" if passed == total and not note.startswith(" · LISTING") else "!!"
@@ -639,6 +645,7 @@ def check_config(paths=None):
             worst = max(worst, 1)
         lines.append(f"{mark} {name:24} {listing} · passed {passed}/{total}{note}")
         lines.append(f"   {'':24} {TRUST}/v/mcp/{listing}")
+        lines += [f"   {'':24} {p}" for p in pins]
     lines.append("static registry scan, not a runtime claim · ok = passed every check · !! = review before trusting · ? = unscanned")
     return worst, lines
 
