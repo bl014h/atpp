@@ -1,0 +1,44 @@
+name: keyless co-signature
+# A second, independent signature over each day's scan manifest, made with Sigstore keyless signing: this
+# workflow's GitHub OIDC identity gets a short-lived certificate, nothing long-lived to steal, and the
+# signature lands in Rekor. Before signing it checks the manifest is the one committed to log/ and that
+# the pinned scan key signed it, so it never co-signs something the verifier would reject.
+# Read-only like every public workflow here: it cannot write the repo. The bundle is uploaded as a run
+# artifact and the scan host's sync-public.sh commits it to log/ on its next run; Rekor holds it either way.
+# Verify one day:  pip install sigstore==4.5.0
+#   python -m sigstore verify identity --bundle log/DATE.manifest.json.sigstore.json \
+#     --cert-identity https://github.com/bl014h/atpp/.github/workflows/keyless.yml@refs/heads/main \
+#     --cert-oidc-issuer https://token.actions.githubusercontent.com log/DATE.manifest.json
+on:
+  push:
+    branches: [main]
+    paths: ["log/20*.json"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency: { group: keyless, cancel-in-progress: false }
+jobs:
+  cosign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - run: python3 -m venv /tmp/v && /tmp/v/bin/pip install --quiet cryptography sigstore==4.5.0
+      - name: Co-sign every day not yet co-signed
+        run: |
+          set -euo pipefail
+          for f in log/20??-??-??.json; do
+            d=$(basename "$f" .json)
+            [ -f "log/$d.manifest.json.sigstore.json" ] && continue
+            /tmp/v/bin/python atpp.py manifest "$d" "log/$d.manifest.json" || { echo "::warning::$d not co-signed (manifest did not check out)"; rm -f "log/$d.manifest.json"; continue; }
+            /tmp/v/bin/python -m sigstore sign --bundle "log/$d.manifest.json.sigstore.json" "log/$d.manifest.json"
+            echo "co-signed $d" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: keyless-bundles
+          path: |
+            log/*.manifest.json
+            log/*.manifest.json.sigstore.json
+          if-no-files-found: ignore

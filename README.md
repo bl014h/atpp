@@ -31,6 +31,70 @@ before trusting, `?` = not in the registry, so nobody has scanned it. Your confi
 uploaded; the script downloads the public index, then fetches the signed claim for each registry
 listing it matched (so our server sees those public listing names, nothing else).
 
+## Gate a launch (preview)
+
+```bash
+python3 atpp.py gate io.github.example/server                                  # exit 0 allow, 1 deny
+python3 atpp.py gate io.github.example/server --image ghcr.io/o/i@sha256:… --strict
+```
+
+It denies when the claim does not verify or has expired, when the listing swapped, when a listed version
+does not exist, when build provenance names another repository, or when the image digest you are about to
+run is not one the scan resolved. `--strict` also denies any failed check and an image not pinned by
+digest. A check that cannot run denies; it never passes by default.
+
+Three places to use it, all opt-in:
+
+- **Before you launch:** `atpp gate … && <your launch command>`.
+- **CI:** the action in this repo with `mode: check-config` fails a pull request that adds an MCP server
+  needing review (`fail-on-unscanned: true` also fails servers outside the official registry).
+- **ToolHive:** `toolhive/atf_receipts.py serve --gate <server> --gate-image <ref@sha256:…>`
+  answers ToolHive's validating webhook with `allowed: false` while the gate denies. Set
+  `failure_policy: fail`, or an outage of the sidecar turns the gate off.
+
+This is a preview of a decision, not a sandbox: it checks the published listing and the artifact digest
+against a static scan. It does not watch what a server does once it runs.
+
+## Your policy: which servers, which bytes, what they may reach
+
+The scan can say what a listing points at. Only you can say what a server is allowed to do. Keep that in
+one file you own:
+
+```json
+{"servers": {"io.github.example/server": {"image": "ghcr.io/example/server@sha256:…",
+                                           "egress": ["api.github.com"], "read": ["/workspace"], "write": []}},
+ "strict": false}
+```
+
+- `atpp gate <server> --policy org.json` denies any server not on the list and any image other than the
+  pinned one, on top of the scan checks.
+- `atpp profile <server> --policy org.json > profile.json` turns the entry into a ToolHive permission
+  profile; run it with `thv run --isolate-network --permission-profile profile.json <server>`, so ToolHive
+  enforces the network allow-list and file mounts at runtime.
+- The ToolHive sidecar takes the same file: `serve --gate <server> --gate-policy org.json`.
+
+Nothing in the signed claim grants a permission. A third-party scanner cannot know what a server should
+reach, so egress and file access come only from your policy.
+
+## Keyless co-signature (Sigstore)
+
+Each day's manifest (it commits to the hash of every claim issued that day) is also signed with Sigstore
+keyless signing by `.github/workflows/keyless.yml` in this repo: GitHub's OIDC identity for that workflow gets a
+short-lived certificate, and the signature is recorded in Rekor. The workflow first checks that the manifest
+is the one in `log/` and that the pinned scan key signed it.
+
+```bash
+pip install sigstore==4.5.0
+python -m sigstore verify identity --bundle log/DATE.manifest.json.sigstore.json \
+  --cert-identity https://github.com/bl014h/atpp/.github/workflows/keyless.yml@refs/heads/main \
+  --cert-oidc-issuer https://token.actions.githubusercontent.com log/DATE.manifest.json
+```
+
+What this adds and what it does not: a second signature from an identity with no long-lived key, in a
+format Sigstore tooling (cosign, policy controllers) already understands. It does not yet replace the
+Ed25519 scan key, which still signs each claim on the scan host; moving the scan and its signing into CI is
+the step that removes that key.
+
 ## Verify
 
 ```bash

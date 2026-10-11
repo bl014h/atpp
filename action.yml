@@ -1,19 +1,25 @@
-name: ATPP pinned badge
-description: Keep a pinned ATPP badge (.atpp/badge.svg + signed attestation) current, or fail CI if it does not verify. Verifies before it writes; opens a PR on change.
+name: ATPP pinned badge and MCP config check
+description: Keep a pinned ATPP badge current, fail CI if it does not verify, or fail a PR that adds an MCP server whose signed scan says review first.
 author: Redthread
 branding:
   icon: shield
   color: orange
 inputs:
   server:
-    description: Your server's name in the MCP registry, e.g. io.github.you/your-server
-    required: true
+    description: Your server's name in the MCP registry, e.g. io.github.you/your-server (refresh and verify modes)
+    default: ""
   path:
     description: Repository directory that holds .atpp/
     default: "."
   mode:
-    description: "refresh — open a PR when the signed claim changed; verify — fail the job unless .atpp/ verifies for this server and this repository"
+    description: "refresh — open a PR when the signed claim changed; verify — fail the job unless .atpp/ verifies for this server and this repository; check-config — fail when an MCP config in the repo lists a server that needs review (listing swap, missing version, foreign build provenance, failed checks)"
     default: refresh
+  configs:
+    description: "check-config: space-separated MCP config files (default: .mcp.json .cursor/mcp.json .vscode/mcp.json)"
+    default: ".mcp.json .cursor/mcp.json .vscode/mcp.json"
+  fail-on-unscanned:
+    description: "check-config: also fail on servers that are not in the official MCP registry (nobody has scanned them)"
+    default: "false"
   token:
     description: Token used to push the branch and open the PR (refresh mode)
     default: ${{ github.token }}
@@ -52,3 +58,18 @@ runs:
         gh pr create --head "$branch" --title "Refresh pinned ATPP badge" \
           --body "The signed ATPP claim for \`$ATPP_SERVER\` changed. This updates \`.atpp/\`; the verifier checked the signature, the registry hash and the badge before writing. Review the diff like any other change." \
           || echo "a PR for $branch already exists"
+    - name: Check the MCP servers this repository configures
+      if: inputs.mode == 'check-config'
+      shell: bash
+      env:
+        ATPP_CONFIGS: ${{ inputs.configs }}
+        ATPP_FAIL_UNSCANNED: ${{ inputs.fail-on-unscanned }}
+      run: |
+        set -uo pipefail
+        # shellcheck disable=SC2086
+        "$RUNNER_TEMP/atpp/bin/python" "$GITHUB_ACTION_PATH/atpp.py" check-config $ATPP_CONFIGS
+        rc=$?
+        if [ $rc -eq 1 ]; then echo "::error::an MCP server needs review before it is trusted (see above)"; exit 1; fi
+        if [ $rc -eq 2 ] && [ "$ATPP_FAIL_UNSCANNED" = "true" ]; then echo "::error::an MCP server is not in the official registry, so nobody has scanned it"; exit 1; fi
+        if [ $rc -eq 3 ]; then echo "::warning::no MCP config found or the check could not run"; fi
+        exit 0

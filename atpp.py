@@ -13,6 +13,9 @@ The public key is embedded below, so a hijacked domain cannot swap it.
   options: --offline (signature, badge, expiry only) · --no-log · --expect <namespace>/<server>
   atpp badge  <namespace>/<server> [dir]    # verifies, then writes <dir>/.atpp/badge.svg + attestation
   atpp check-config [config.json ...]       # every MCP server in your Claude/Cursor/VS Code/Windsurf config, checked
+  atpp gate <namespace>/<server> [--image ref@sha256:...] [--strict] [--policy org.json]   # allow (exit 0) or deny (exit 1)
+  atpp profile <namespace>/<server> --policy org.json   # your policy as a ToolHive permission profile (egress, files)
+  atpp manifest <YYYY-MM-DD> <out.json>     # the day's signed manifest, checked against the public log (what Sigstore co-signs)
 
 Exit codes: 0 valid and current · 1 invalid (signature, digest or badge mismatch) · 2 valid but
 expired · 3 incomplete or could not check (a required check could not run — never a pass).
@@ -625,29 +628,100 @@ def check_config(paths=None):
         if not row:
             why = "local command, not from a package registry" if not k else "not in the official MCP registry: nobody has scanned it"
             lines.append(f"?  {name:24} {why}")
-            worst = max(worst, 2)
+            worst = max(worst, 2 if k else 0)      # your own local command is not an unscanned third party
             continue
         listing, passed, total = row[0], row[1], row[2]
         note, pins = "", []
         try:
             st = open_envelope(fetch_envelope(listing))
             for cid, ok, detail in st["predicate"]["checks"]:
-                if cid == "target-stable" and not ok:
-                    note, worst = " · LISTING SWAP: " + clean(detail, 120), max(worst, 1)
+                if cid in GATE_CHECKS and not ok:
+                    label = "LISTING SWAP" if cid == "target-stable" else cid.upper()
+                    note += f" · {label}: " + clean(detail, 120)
             for t, ident, ver, digest, prov in st["predicate"].get("artifacts") or []:
                 pin = f"{ident}@{digest}" if t == "oci" and digest else f"{ident}@{ver}"
                 pins.append(f"pin {t} {clean(pin, 160)}" + (f" · built by {clean(prov, 80)} (Sigstore provenance)" if prov else " · no build provenance")
                             + (f" · {clean(digest, 40)}" if t != "oci" and digest else ""))
         except Exception as ex:
             note = f" · detail not checked ({ex.__class__.__name__})"
-        mark = "ok" if passed == total and not note.startswith(" · LISTING") else "!!"
-        if mark == "!!":
+        blocking = any(f" · {x}:" in note for x in ("LISTING SWAP", "ARTIFACT-RESOLVES", "BUILD-PROVENANCE"))
+        mark = "!!" if blocking else ("ok" if passed == total else "~ ")
+        if blocking:
             worst = max(worst, 1)
         lines.append(f"{mark} {name:24} {listing} · passed {passed}/{total}{note}")
         lines.append(f"   {'':24} {TRUST}/v/mcp/{listing}")
         lines += [f"   {'':24} {p}" for p in pins]
-    lines.append("static registry scan, not a runtime claim · ok = passed every check · !! = review before trusting · ? = unscanned")
+    lines.append("static registry scan, not a runtime claim · ok = passed every check · ~ = some checks failed, see the link · !! = do not trust by name: swapped, missing version or built elsewhere · ? = unscanned")
     return worst, lines
+
+
+# ------------------------------------------------------------------ gate (allow or deny a launch)
+GATE_CHECKS = ("target-stable", "artifact-resolves", "build-provenance")   # failing any of these always denies
+
+
+def load_policy(path):
+    """Your organisation's MCP policy. The scanner never writes this: only you know what a server may reach.
+    {"servers": {"<namespace>/<server>": {"image": "ref@sha256:...", "egress": ["api.github.com"],
+                                          "read": ["/workspace"], "write": []}},
+     "strict": false}
+    A server missing from "servers" is denied when a policy is in force."""
+    pol = json.load(open(path, encoding="utf-8"))
+    if not isinstance(pol.get("servers"), dict):
+        raise ValueError("policy needs a \"servers\" object")
+    return pol
+
+
+def toolhive_profile(entry):
+    """A ToolHive permission profile (network allow-list, file mounts) from one policy entry."""
+    return {"network": {"outbound": {"insecure_allow_all": False, "allow_host": sorted(entry.get("egress") or []),
+                                     "allow_port": sorted(entry.get("ports") or [443])}},
+            "read": sorted(entry.get("read") or []), "write": sorted(entry.get("write") or [])}
+
+
+def gate(name, image=None, strict=False, env=None, online=True, policy=None):
+    """(allowed, reasons) for launching `name`. Denies on: a claim that does not verify or has expired, a
+    listing swap, a listed version that does not exist, build provenance from another repository, and an
+    image whose digest is not one the scan resolved. --strict also denies anything short of every check
+    passing, and an image not pinned by digest. Anything that could not be checked denies: never a pass.
+    With a policy, a server not on its allow-list is denied and a pinned image must match exactly."""
+    if policy is not None:
+        entry = policy["servers"].get(name)
+        if entry is None:
+            return False, [f"{name} is not on your MCP allow-list"]
+        strict = strict or bool(policy.get("strict"))
+        pin = entry.get("image")
+        if pin and image and image != pin:
+            return False, [f"image {image} is not the one your policy pins ({pin})"]
+        image = image or pin
+    try:
+        env = env or fetch_envelope(name)
+        status, _lines = check(env, None, online=online, expect=name, log=False)
+    except Exception as e:
+        return False, [f"claim did not verify: {e}"]
+    if status != 0:
+        return False, ["claim expired or could not be fully checked"]
+    pred = json.loads(base64.b64decode(env["payload"]))["predicate"]
+    reasons = [f"{cid} failed: {clean(detail, 160)}" for cid, ok, detail in pred.get("checks") or []
+               if not ok and (strict or cid in GATE_CHECKS)]
+    if image:
+        digest = image.split("@", 1)[1] if "@sha256:" in image else None
+        scanned = {a[3] for a in pred.get("artifacts") or [] if a[0] == "oci" and a[3]}
+        if digest and digest not in scanned:
+            reasons.append(f"image digest {digest[:19]}… is not one the scan resolved ({', '.join(sorted(d[:19] + '…' for d in scanned)) or 'none'})")
+        elif not digest and strict:
+            reasons.append("image is not pinned by digest (ref@sha256:…), so what runs cannot be matched to what was scanned")
+    return not reasons, reasons or [f"allowed — {pred['passed']}/{pred['total']} checks, as of {pred['as_of']}"]
+
+
+def day_manifest(date, log_entry=None):
+    """The day's signed manifest envelope as canonical bytes, after checking that it is the one committed to the
+    public log and that our pinned key signed it. These bytes are what the keyless Sigstore co-signature covers."""
+    entry = log_entry or json.loads(_get(f"{LOG_RAW}/{date}.json"))
+    env = json.loads(_get(f"{TRUST}/v/log/{date}.json"))
+    if envelope_sha256(env) != entry.get("manifest_sha256"):
+        raise VerifyError(f"the served {date} manifest is not the one in the public log")
+    open_envelope(env, MANIFEST_TYPE)
+    return canonical(env)
 
 
 def fetch_envelope(name):
@@ -694,6 +768,37 @@ def main(argv=None):
             return 3
         print("\n".join(lines))
         return 0
+    if a and a[0] == "manifest" and len(a) == 3:
+        try:
+            body = day_manifest(a[1])
+        except VerifyError as e:
+            print(f"INVALID — {e}")
+            return 1
+        open(a[2], "wb").write(body)
+        print(f"wrote {a[2]} — sha256 {hashlib.sha256(body).hexdigest()}")
+        return 0
+    if a and a[0] == "profile" and len(a) >= 2:
+        pp = _opt(a, "--policy")
+        if not pp:
+            print("profile needs --policy org.json", file=sys.stderr)
+            return 3
+        entry = load_policy(pp)["servers"].get(a[1])
+        if entry is None:
+            print(f"{a[1]} is not on your MCP allow-list", file=sys.stderr)
+            return 1
+        print(json.dumps(toolhive_profile(entry), indent=1))
+        return 0
+    if a and a[0] == "gate" and len(a) >= 2:
+        image, strict, pp = _opt(a, "--image"), "--strict" in a, _opt(a, "--policy")
+        try:
+            pol = load_policy(pp) if pp else None
+        except Exception as e:
+            print(f"DENY  {a[1]}\n  policy could not be read: {e}")
+            return 1
+        ok, reasons = gate(a[1], image=image, strict=strict, online=online, policy=pol)
+        print(("ALLOW " if ok else "DENY  ") + a[1])
+        print("\n".join("  " + r for r in reasons))
+        return 0 if ok else 1
     if a and a[0] == "check-config":
         try:
             status, lines = check_config(a[1:] or None)
