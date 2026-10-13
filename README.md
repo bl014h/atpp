@@ -31,6 +31,38 @@ before trusting, `?` = not in the registry, so nobody has scanned it. Your confi
 uploaded; the script downloads the public index, then fetches the signed claim for each registry
 listing it matched (so our server sees those public listing names, nothing else).
 
+## Gate MCP tool calls in Claude Code and Cursor (preview)
+
+Both tools run your own command before an MCP tool is used. Point that hook at atpp, and every call is checked
+against the server's signed scan first (the verdict is cached for an hour, the index for six):
+
+**Claude Code** (`~/.claude/settings.json` or `.claude/settings.json`):
+```json
+{"hooks": {"PreToolUse": [{"matcher": "mcp__.*",
+  "hooks": [{"type": "command", "command": "python3 /path/to/atpp.py hook claude"}]}]}}
+```
+
+**Cursor** (`~/.cursor/hooks.json` or `.cursor/hooks.json`):
+```json
+{"version": 1, "hooks": {"beforeMCPExecution": [
+  {"command": "python3 /path/to/atpp.py hook cursor", "failClosed": true}]}}
+```
+
+A server whose claim fails a gate check (listing swap, missing version, foreign build provenance) is denied
+with the reason and its verify link. Options: `--policy org.json` (deny anything off your allow-list),
+`--strict` (deny any failed check), `--unscanned ask|deny` (servers outside the registry; default: no opinion).
+A check that cannot run denies. This gates on the published listing and artifacts, not on runtime behaviour.
+
+## An AIBOM of the MCP servers you use
+
+```bash
+python3 atpp.py check-config --cyclonedx mcp-aibom.json
+```
+
+It writes a CycloneDX 1.6 BOM: one component per resolved package (purl, SHA-512/SHA-256 hashes, the
+repository named in its Sigstore build provenance), one service per remote endpoint, and the signed scan
+status, score and verify link as properties. Run it in CI across your repositories to keep an inventory.
+
 ## Gate a launch (preview)
 
 ```bash
