@@ -1,0 +1,21 @@
+{
+ "date": "2026-10-13",
+ "keyid": "atpp-scan-2026-10",
+ "count": 42632,
+ "manifest_sha256": "8eefc01b36ba8aa91a1cd4853bece7601ed9ddd3a4f87a946373756f5f920fe7",
+ "anchor": {
+  "payloadType": "application/vnd.millenniums.atpp-anchor+json",
+  "payload": "eyJfdHlwZSI6Imh0dHBzOi8vbWlsbGVubml1bXMuYWkvYXRwcC9hbmNob3IvdjEiLCJjb3VudCI6NDI2MzIsImRhdGUiOiIyMDI2LTEwLTEzIiwia2V5aWQiOiJhdHBwLXNjYW4tMjAyNi0xMCIsIm1hbmlmZXN0X3NoYTI1NiI6IjhlZWZjMDFiMzZiYThhYTkxYTFjZDQ4NTNiZWNlNzYwMWVkOWRkZDNhNGY4N2E5NDYzNzM3NTZmNWY5MjBmZTcifQ==",
+  "signatures": [
+   {
+    "keyid": "atpp-scan-2026-10",
+    "sig": "WY5TgMRdJ1osw3c05iI35FLGlDF/ly8XhUSPeM2Ire3D/eob/oJYklDOFOHVOOtjpP22KQ8fjeAq5elM488kBg=="
+   }
+  ]
+ },
+ "rekor": {
+  "uuid": "108e9186e8c5677a008ff0a84ea95428428970264b76fecea7efe633ae6d4ba54f8667966fc07e07",
+  "logIndex": 3239776534,
+  "integratedTime": 1791859261
+ }
+}

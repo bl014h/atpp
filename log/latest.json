@@ -1,21 +1,21 @@
 {
- "date": "2026-10-12",
+ "date": "2026-10-13",
  "keyid": "atpp-scan-2026-10",
- "count": 42174,
- "manifest_sha256": "3e913e5bfa70f63124fd6c53c7b3cd6d6e609e41d266dd356130a75ad0c875ea",
+ "count": 42632,
+ "manifest_sha256": "8eefc01b36ba8aa91a1cd4853bece7601ed9ddd3a4f87a946373756f5f920fe7",
  "anchor": {
   "payloadType": "application/vnd.millenniums.atpp-anchor+json",
-  "payload": "eyJfdHlwZSI6Imh0dHBzOi8vbWlsbGVubml1bXMuYWkvYXRwcC9hbmNob3IvdjEiLCJjb3VudCI6NDIxNzQsImRhdGUiOiIyMDI2LTEwLTEyIiwia2V5aWQiOiJhdHBwLXNjYW4tMjAyNi0xMCIsIm1hbmlmZXN0X3NoYTI1NiI6IjNlOTEzZTViZmE3MGY2MzEyNGZkNmM1M2M3YjNjZDZkNmU2MDllNDFkMjY2ZGQzNTYxMzBhNzVhZDBjODc1ZWEifQ==",
+  "payload": "eyJfdHlwZSI6Imh0dHBzOi8vbWlsbGVubml1bXMuYWkvYXRwcC9hbmNob3IvdjEiLCJjb3VudCI6NDI2MzIsImRhdGUiOiIyMDI2LTEwLTEzIiwia2V5aWQiOiJhdHBwLXNjYW4tMjAyNi0xMCIsIm1hbmlmZXN0X3NoYTI1NiI6IjhlZWZjMDFiMzZiYThhYTkxYTFjZDQ4NTNiZWNlNzYwMWVkOWRkZDNhNGY4N2E5NDYzNzM3NTZmNWY5MjBmZTcifQ==",
   "signatures": [
    {
     "keyid": "atpp-scan-2026-10",
-    "sig": "UIQ1cfIO0rKv6svblLqqJiGm2sCnLkrFsNJuf+yE1rIRE2bCUbgf5LRWrJyRyUA1+X2bnbfbn+JKfA+jgkcvCg=="
+    "sig": "WY5TgMRdJ1osw3c05iI35FLGlDF/ly8XhUSPeM2Ire3D/eob/oJYklDOFOHVOOtjpP22KQ8fjeAq5elM488kBg=="
    }
   ]
  },
  "rekor": {
-  "uuid": "108e9186e8c5677aacd25c9eb851e235b1c0e4a0b5467baea4a0c5b0b701ca0f109c79a8a32e4efd",
-  "logIndex": 3219354085,
-  "integratedTime": 1791772555
+  "uuid": "108e9186e8c5677a008ff0a84ea95428428970264b76fecea7efe633ae6d4ba54f8667966fc07e07",
+  "logIndex": 3239776534,
+  "integratedTime": 1791859261
  }
 }
