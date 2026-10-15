@@ -170,7 +170,7 @@ def main():
     check_freshness(rep)
     check_keys(rep)
     try:
-        names = [n for n, *_ in json.loads(get(f"{TRUST}/mcp-names.json")[2])["n"]]
+        names = [n for n, _p, _t in json.loads(get(f"{TRUST}/mcp-names.json")[2])["n"]]
     except Exception as e:
         rep.bad(f"name index unreachable ({e})")
         names = []

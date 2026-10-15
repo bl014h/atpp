@@ -82,7 +82,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out")
     a = ap.parse_args()
-    names = [n for n, *_ in json.loads(atpp._get(f"{atpp.TRUST}/mcp-names.json"))["n"]]
+    names = [n for n, _p, _t in json.loads(atpp._get(f"{atpp.TRUST}/mcp-names.json"))["n"]]
     name, env, pred, repo = pick_target(names)
     svg = atpp.render_badge(name, pred["version"], pred["passed"], pred["total"], pred["as_of"], pred["rules_version"])
     tmp = tempfile.mkdtemp(prefix="atpp-redteam-")
