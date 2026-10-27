@@ -1,0 +1,15 @@
+{
+  "case": "02-query-value-rotation",
+  "registry_targetDrift": {
+    "comparedTo": {
+      "previousPublished": "A",
+      "first": "A"
+    },
+    "remotesChanged": false,
+    "packageOwnersChanged": false,
+    "repositoryChanged": false,
+    "changes": []
+  },
+  "client_action": "re-consent",
+  "why": "THE KEY CASE. Registry reports remotesChanged=false (it compares keys, never values, to avoid leaking). But the locally pinned exact target changed. remotesChanged=false must NOT suppress client re-consent."
+}

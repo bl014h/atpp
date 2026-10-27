@@ -1,0 +1,31 @@
+{
+  "name": "io.example.fixtures/alpha",
+  "description": "A synthetic fixture server.",
+  "version": "1.0.0",
+  "repository": {
+    "url": "https://github.com/example-fixtures/alpha",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://api.alpha.example/mcp"
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@alpha/mcp",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/official": {
+      "publishedAt": "2026-01-01T00:00:00Z"
+    }
+  }
+}

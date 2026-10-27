@@ -1,0 +1,22 @@
+{
+  "case": "04-non-semver-ordering",
+  "registry_targetDrift": {
+    "comparedTo": {
+      "previousPublished": "A (version \"9\", published 2026-01-01)",
+      "first": "A"
+    },
+    "remotesChanged": true,
+    "packageOwnersChanged": false,
+    "repositoryChanged": false,
+    "changes": [
+      {
+        "kind": "remote",
+        "field": "url.origin",
+        "from": "api.delta.example",
+        "to": "api.delta-new.example"
+      }
+    ]
+  },
+  "client_action": "re-consent",
+  "why": "Text sort would place version \"10\" before \"9\" and pick the wrong previous. comparedTo is resolved by publishedAt (A is earlier), not the text version sort \u2014 so the origin change is detected correctly."
+}

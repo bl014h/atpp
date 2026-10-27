@@ -1,0 +1,31 @@
+{
+  "name": "io.example.fixtures/foxtrot",
+  "description": "A synthetic fixture server.",
+  "version": "1.0.0",
+  "repository": {
+    "url": "https://github.com/example-fixtures/foxtrot",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://api.foxtrot.example/mcp"
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@foxtrot/mcp",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/official": {
+      "publishedAt": "2026-02-01T00:00:00Z"
+    }
+  }
+}

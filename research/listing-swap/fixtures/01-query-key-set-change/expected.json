@@ -1,0 +1,24 @@
+{
+  "case": "01-query-key-set-change",
+  "registry_targetDrift": {
+    "comparedTo": {
+      "previousPublished": "A",
+      "first": "A"
+    },
+    "remotesChanged": true,
+    "packageOwnersChanged": false,
+    "repositoryChanged": false,
+    "changes": [
+      {
+        "kind": "remote",
+        "field": "url.query-keys",
+        "from": [],
+        "to": [
+          "region"
+        ]
+      }
+    ]
+  },
+  "client_action": "re-consent",
+  "why": "A new query key changes the request shape. Registry sees the key set (not values) and reports it; client re-consents."
+}

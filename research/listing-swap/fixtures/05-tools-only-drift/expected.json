@@ -1,0 +1,16 @@
+{
+  "case": "05-tools-only-drift",
+  "registry_targetDrift": {
+    "comparedTo": {
+      "previousPublished": "A",
+      "first": "A"
+    },
+    "remotesChanged": false,
+    "packageOwnersChanged": false,
+    "repositoryChanged": false,
+    "changes": []
+  },
+  "tools_list_note": "Out of scope for server.json. Client-observed tools/list changed: added a write-capable tool 'send_email' and changed an annotation on 'read_doc'. The registry cannot see this.",
+  "client_action": "re-consent",
+  "why": "server.json target is unchanged, so the Registry signal is all-false. The tool contract changed, which only the client sees via tools/list. Registry no-drift must never read as tool safety; the client re-consents."
+}

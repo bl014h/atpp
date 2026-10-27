@@ -1,0 +1,22 @@
+{
+  "case": "03-same-scope-package-rename",
+  "registry_targetDrift": {
+    "comparedTo": {
+      "previousPublished": "A",
+      "first": "A"
+    },
+    "remotesChanged": false,
+    "packageOwnersChanged": false,
+    "repositoryChanged": false,
+    "changes": [
+      {
+        "kind": "package",
+        "field": "identifier",
+        "from": "@charlie/mcp-widget",
+        "to": "@charlie/mcp-gadget"
+      }
+    ]
+  },
+  "client_action": "re-consent",
+  "why": "Owner scope (@charlie) is unchanged, so packageOwnersChanged=false \u2014 but the installed package identity changed. Registry may surface the identifier change; either way the client re-pins and re-consents."
+}

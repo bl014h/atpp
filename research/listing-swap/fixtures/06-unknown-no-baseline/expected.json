@@ -1,0 +1,6 @@
+{
+  "case": "06-unknown-no-baseline",
+  "registry_targetDrift": null,
+  "client_action": "ask-unknown",
+  "why": "No prior published version to compare against (first publish, or an unparseable baseline). The signal is absent/UNKNOWN, never 'unchanged'. A client with no approved baseline asks; it never auto-passes."
+}

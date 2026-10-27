@@ -1,0 +1,31 @@
+{
+  "name": "io.example.fixtures/charlie",
+  "description": "A synthetic fixture server.",
+  "version": "1.0.0",
+  "repository": {
+    "url": "https://github.com/example-fixtures/charlie",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://api.charlie.example/mcp"
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@charlie/mcp-widget",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/official": {
+      "publishedAt": "2026-01-01T00:00:00Z"
+    }
+  }
+}

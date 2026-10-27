@@ -1,0 +1,31 @@
+{
+  "name": "io.example.fixtures/delta",
+  "description": "A synthetic fixture server.",
+  "version": "9",
+  "repository": {
+    "url": "https://github.com/example-fixtures/delta",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://api.delta.example/mcp"
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@delta/mcp",
+      "version": "9",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/official": {
+      "publishedAt": "2026-01-01T00:00:00Z"
+    }
+  }
+}
