@@ -1,0 +1,12 @@
+ATPP — Agent Trust Fabric: MCP registry scanner and verifier
+Copyright 2026 Redthread Security Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+This product scores public entries in the official Model Context Protocol
+registry (registry.modelcontextprotocol.io) from their published manifests.
+It fetches and executes no server code.

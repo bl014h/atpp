@@ -14,6 +14,8 @@ It lives in a signed file:
 A level-1 claim is a **static scan of a published manifest** ("passed N of M published checks on
 DATE"). It is not a runtime claim and says nothing about what a server does once installed.
 
+The scanner that produces these claims is open — its methodology, every check, and how to run it yourself are in **[SCANNER.md](SCANNER.md)**.
+
 ## Check the MCP servers you already installed
 
 ```bash
@@ -249,3 +251,7 @@ rolled-back claim will not match a manifest whose hash is already in this repo's
 ## Report a problem
 
 security@redthreadsec.com · [disclosure policy](https://trust.redthreadsec.com/security)
+
+## License
+
+Apache-2.0. Copyright 2026 Redthread Security Inc. See [LICENSE](LICENSE) and [NOTICE](NOTICE). The signing keys that turn a local score into a dated, logged attestation are not part of this release — anyone can reproduce a score and verify ours, but only Redthread can sign the daily claim.
