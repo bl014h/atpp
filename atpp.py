@@ -12,7 +12,8 @@ The public key is embedded below, so a hijacked domain cannot swap it.
   atpp report mcp-scan|mcp-names              # the public aggregate report / search index match their signed copies
   options: --offline (signature, badge, expiry only) · --no-log · --expect <namespace>/<server>
   atpp badge  <namespace>/<server> [dir]    # verifies, then writes <dir>/.atpp/badge.svg + attestation
-  atpp check-config [config.json ...]       # every MCP server in your Claude/Cursor/VS Code/Windsurf config, checked
+  atpp check-config [config.json ...] [--cyclonedx bom.json]   # every MCP server in your configs, checked (+ an AIBOM)
+  atpp hook claude|cursor [--policy org.json] [--unscanned ask|deny] [--strict]   # gate MCP tool calls (preview)
   atpp gate <namespace>/<server> [--image ref@sha256:...] [--strict] [--policy org.json]   # allow (exit 0) or deny (exit 1)
   atpp profile <namespace>/<server> --policy org.json   # your policy as a ToolHive permission profile (egress, files)
   atpp manifest <YYYY-MM-DD> <out.json>     # the day's signed manifest, checked against the public log (what Sigstore co-signs)
@@ -23,7 +24,7 @@ expired · 3 incomplete or could not check (a required check could not run — n
 Needs Python 3.9+ and `pip install cryptography`. Source and key history:
 https://github.com/bl014h/atpp
 """
-import base64, hashlib, json, os, re, sys, urllib.parse, urllib.request
+import base64, hashlib, json, os, re, shlex, sys, time, urllib.parse, urllib.request
 from datetime import datetime, timezone
 
 # Trust is pinned to ONE offline root key. The root signs a key list (scan keys, their validity windows,
@@ -189,6 +190,8 @@ def statement(name, score, issuer=TRUST):
             "registry": "registry.modelcontextprotocol.io", "scope": "static manifest scan — not a runtime claim"}
     if score.get("artifacts"):           # [type, identifier, version, digest, provenance repo] as resolved at scan time
         pred["artifacts"] = score["artifacts"]
+    if score.get("tools"):               # sha256 of the remote server's advertised tool definitions, and how many
+        pred["tools"] = score["tools"]
     svg = render_badge(name, pred["version"], pred["passed"], pred["total"], pred["as_of"], pred["rules_version"])
     pred["badge_sha256"] = hashlib.sha256(svg.encode("utf-8")).hexdigest()
     return {"_type": STATEMENT_TYPE, "predicateType": PREDICATE_TYPE, "predicate": pred,
@@ -611,17 +614,53 @@ def config_servers(paths):
     return out
 
 
-def check_config(paths=None):
-    """The installer's view: for each configured server, the registry listing behind it and its signed score."""
-    found = config_servers(paths or CONFIG_PATHS)
-    if not found:
-        return 3, ["no MCP config found — pass the file: atpp check-config path/to/mcp.json"]
-    index = open_envelope(json.loads(_get(f"{TRUST}/mcp-names.json.dsse")), REPORT_TYPE)
+CACHE_DIR = os.path.expanduser("~/.cache/atpp")
+
+
+def _cache(name, key=None, value=None, ttl=3600):
+    """A small JSON cache for the hook (it runs on every MCP tool call). Read: returns the value if fresh, else
+    None. Write: pass value. # ponytail: a local file the user owns; delete ~/.cache/atpp to force fresh checks."""
+    path = os.path.join(CACHE_DIR, name)
+    try:
+        data = json.load(open(path))
+    except Exception:
+        data = {}
+    if value is None:
+        hit = data.get(key or "_")
+        return hit["v"] if hit and time.time() - hit["t"] < ttl else None
+    data[key or "_"] = {"t": time.time(), "v": value}
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    tmp = path + ".tmp"
+    json.dump(data, open(tmp, "w"))
+    os.replace(tmp, path)
+    return value
+
+
+def signed_index(ttl=6 * 3600):
+    """The registry index (listing, passed, total, install keys), signature-checked, cached for a few hours."""
+    idx = _cache("index.json", ttl=ttl)
+    if idx is None:
+        idx = _cache("index.json", value=open_envelope(json.loads(_get(f"{TRUST}/mcp-names.json.dsse")), REPORT_TYPE))
+    return idx
+
+
+def index_by_key(index):
     by_key = {}
     for row in index.get("n") or []:
         for k in (row[3] if len(row) > 3 else []):
             by_key.setdefault(k, row)
-    lines, worst = [f"index       OK — signed registry index as of {index.get('as_of')}"], 0
+    return by_key
+
+
+def check_config(paths=None, bom=None):
+    """The installer's view: for each configured server, the registry listing behind it and its signed score.
+    With bom, also write a CycloneDX AIBOM of every configured MCP server to that path."""
+    found = config_servers(paths or CONFIG_PATHS)
+    if not found:
+        return 3, ["no MCP config found — pass the file: atpp check-config path/to/mcp.json"]
+    index = signed_index()
+    by_key = index_by_key(index)
+    lines, worst, records = [f"index       OK — signed registry index as of {index.get('as_of')}"], 0, []
     for f, name, e in found:
         k = entry_key(e)
         row = by_key.get(k) if k else None
@@ -629,11 +668,13 @@ def check_config(paths=None):
             why = "local command, not from a package registry" if not k else "not in the official MCP registry: nobody has scanned it"
             lines.append(f"?  {name:24} {why}")
             worst = max(worst, 2 if k else 0)      # your own local command is not an unscanned third party
+            records.append({"name": name, "entry": e, "status": "unscanned" if k else "local"})
             continue
         listing, passed, total = row[0], row[1], row[2]
-        note, pins = "", []
+        note, pins, arts = "", [], []
         try:
             st = open_envelope(fetch_envelope(listing))
+            arts = st["predicate"].get("artifacts") or []
             for cid, ok, detail in st["predicate"]["checks"]:
                 if cid in GATE_CHECKS and not ok:
                     label = "LISTING SWAP" if cid == "target-stable" else cid.upper()
@@ -644,19 +685,138 @@ def check_config(paths=None):
                             + (f" · {clean(digest, 40)}" if t != "oci" and digest else ""))
         except Exception as ex:
             note = f" · detail not checked ({ex.__class__.__name__})"
-        blocking = any(f" · {x}:" in note for x in ("LISTING SWAP", "ARTIFACT-RESOLVES", "BUILD-PROVENANCE"))
+        blocking = any(f" · {x}:" in note for x in ("LISTING SWAP", "ARTIFACT-RESOLVES", "BUILD-PROVENANCE", "TOOLS-STABLE"))
         mark = "!!" if blocking else ("ok" if passed == total else "~ ")
         if blocking:
             worst = max(worst, 1)
+        records.append({"name": name, "entry": e, "listing": listing, "passed": passed, "total": total,
+                        "artifacts": arts, "status": "blocked" if blocking else ("ok" if passed == total else "review")})
         lines.append(f"{mark} {name:24} {listing} · passed {passed}/{total}{note}")
         lines.append(f"   {'':24} {TRUST}/v/mcp/{listing}")
         lines += [f"   {'':24} {p}" for p in pins]
-    lines.append("static registry scan, not a runtime claim · ok = passed every check · ~ = some checks failed, see the link · !! = do not trust by name: swapped, missing version or built elsewhere · ? = unscanned")
+    lines.append("static registry scan, not a runtime claim · ok = passed every check · ~ = some checks failed, see the link · !! = do not trust by name: swapped, missing version, built elsewhere or tools changed silently · ? = unscanned")
+    if bom:
+        json.dump(cyclonedx(records, index.get("as_of")), open(bom, "w"), indent=1)
+        lines.append(f"aibom       wrote {bom} (CycloneDX 1.6, {len(records)} MCP servers)")
     return worst, lines
 
 
+def _purl(t, ident, ver, digest):
+    if t == "npm":
+        return "pkg:npm/" + urllib.parse.quote(ident, safe="/") + "@" + urllib.parse.quote(ver)
+    if t == "pypi":
+        return f"pkg:pypi/{ident.lower()}@{urllib.parse.quote(ver)}"
+    if t == "oci":
+        repo = ident.split("@")[0].rsplit(":", 1)[0] if ":" in ident.rsplit("/", 1)[-1] else ident.split("@")[0]
+        name = repo.rsplit("/", 1)[-1]
+        return f"pkg:oci/{name}@{urllib.parse.quote(digest or ver, safe='')}?repository_url={urllib.parse.quote(repo, safe='/')}"
+    return None
+
+
+def _hashes(t, digest):
+    out = []
+    for d in str(digest or "").split(";"):
+        if d.startswith("sha512-"):
+            out.append({"alg": "SHA-512", "content": base64.b64decode(d[7:]).hex()})
+        elif d.startswith("sha256:"):
+            out.append({"alg": "SHA-256", "content": d[7:]})
+    return out
+
+
+def cyclonedx(records, as_of=None):
+    """A CycloneDX 1.6 BOM of configured MCP servers: one component per resolved package (purl, hashes, build
+    provenance), one service per remote endpoint, with the signed scan status as properties."""
+    import uuid
+    comps, svcs = [], []
+    for r in records:
+        e, props = r["entry"], [{"name": "mcp:server", "value": r["name"]}, {"name": "atpp:status", "value": r["status"]}]
+        if r.get("listing"):
+            props += [{"name": "atpp:listing", "value": r["listing"]},
+                      {"name": "atpp:score", "value": f"{r['passed']}/{r['total']}"},
+                      {"name": "atpp:verify", "value": f"{TRUST}/v/mcp/{r['listing']}"}]
+            if as_of:
+                props.append({"name": "atpp:scanned", "value": as_of})
+        url = e.get("url") or e.get("serverUrl")
+        if url:
+            svcs.append({"bom-ref": f"svc:{r['name']}", "name": r["name"], "endpoints": [url], "properties": props})
+            continue
+        arts = r.get("artifacts") or []
+        if not arts:
+            comps.append({"type": "application", "bom-ref": f"mcp:{r['name']}", "name": r["name"], "properties": props})
+        for t, ident, ver, digest, prov in arts:
+            c = {"type": "application", "bom-ref": f"mcp:{r['name']}:{ident}", "name": ident, "version": ver,
+                 "purl": _purl(t, ident, ver, digest), "properties": list(props)}
+            h = _hashes(t, digest)
+            if h:
+                c["hashes"] = h
+            if prov:
+                c["externalReferences"] = [{"type": "vcs", "url": f"https://github.com/{prov}" if "/" in prov and "." not in prov.split("/")[0] else prov,
+                                            "comment": "repository named in the package's Sigstore build provenance"}]
+            comps.append(c)
+    return {"bomFormat": "CycloneDX", "specVersion": "1.6", "serialNumber": f"urn:uuid:{uuid.uuid4()}", "version": 1,
+            "metadata": {"timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                         "tools": {"components": [{"type": "application", "name": "atpp", "publisher": "Redthread Security",
+                                                   "externalReferences": [{"type": "vcs", "url": "https://github.com/bl014h/atpp"}]}]}},
+            "components": comps, "services": svcs}
+
+
+# ------------------------------------------------------------------ hooks (gate MCP tool calls in Claude Code / Cursor)
+def _hook_entry(kind, ev, paths=None):
+    """(server name, config entry) for the MCP server a hook event is about, or (name, None)."""
+    if kind == "claude":
+        parts = str(ev.get("tool_name") or "").split("__")
+        if len(parts) < 3 or parts[0] != "mcp" or parts[1].startswith("plugin_"):
+            return None, None
+        name = parts[1]
+        cfgs = (paths or CONFIG_PATHS) + [os.path.join(ev.get("cwd") or ".", ".mcp.json")]
+        return name, next((e for _f, n, e in config_servers(cfgs) if n == name), None)
+    name = ev.get("mcp_server_name")
+    url = ev.get("url") or ev.get("mcp_server_url")
+    if url:
+        return name, {"url": url}
+    try:
+        argv = shlex.split(ev.get("command") or "")
+    except ValueError:
+        argv = []
+    return name, ({"command": argv[0], "args": argv[1:]} if argv else None)
+
+
+def hook_decision(kind, ev, policy=None, unscanned=None, strict=False, paths=None):
+    """(decision, reason): decision is "deny", "ask", "allow" or None (no opinion, normal flow continues)."""
+    name, entry = _hook_entry(kind, ev, paths)
+    if name is None and kind == "claude":
+        return None, ""
+    k = entry_key(entry) if entry else None
+    row = index_by_key(signed_index()).get(k) if k else None
+    if not row:
+        if policy is not None:
+            return "deny", f"{name}: not on your MCP allow-list (no registry listing behind it)"
+        if k and unscanned:
+            return unscanned, f"{name} is not in the official MCP registry, so nobody has scanned it"
+        return None, ""
+    listing = row[0]
+    image = next((a for a in (entry or {}).get("args") or [] if "@sha256:" in str(a)), None)
+    ck = "|".join([listing, image or "", str(strict), json.dumps(policy, sort_keys=True) if policy else ""])
+    v = _cache("verdicts.json", ck)
+    if v is None:
+        ok, reasons = gate(listing, image=image, strict=strict, policy=policy)
+        v = _cache("verdicts.json", ck, {"ok": ok, "reasons": reasons})
+    if v["ok"]:
+        return ("allow" if kind == "cursor" else None), f"{listing}: " + "; ".join(v["reasons"])
+    return "deny", f"ATPP gate denied {name} ({listing}): " + "; ".join(v["reasons"]) + f" — {TRUST}/v/mcp/{listing}"
+
+
+def hook_output(kind, decision, reason):
+    if kind == "cursor":
+        return {"permission": decision or "allow", "user_message": reason, "agent_message": reason}
+    if decision is None:
+        return None
+    return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": decision,
+                                   "permissionDecisionReason": reason}}
+
+
 # ------------------------------------------------------------------ gate (allow or deny a launch)
-GATE_CHECKS = ("target-stable", "artifact-resolves", "build-provenance")   # failing any of these always denies
+GATE_CHECKS = ("target-stable", "artifact-resolves", "build-provenance", "tools-stable")   # failing any of these always denies
 
 
 def load_policy(path):
@@ -799,9 +959,22 @@ def main(argv=None):
         print(("ALLOW " if ok else "DENY  ") + a[1])
         print("\n".join("  " + r for r in reasons))
         return 0 if ok else 1
-    if a and a[0] == "check-config":
+    if a and a[0] == "hook" and len(a) >= 2 and a[1] in ("claude", "cursor"):
+        pp, uns, strict = _opt(a, "--policy"), _opt(a, "--unscanned"), "--strict" in a
         try:
-            status, lines = check_config(a[1:] or None)
+            ev = json.loads(sys.stdin.read() or "{}")
+            d, why = hook_decision(a[1], ev, policy=load_policy(pp) if pp else None,
+                                   unscanned=uns if uns in ("ask", "deny") else None, strict=strict)
+        except Exception as e:                      # a gate that cannot decide denies
+            d, why = "deny", f"ATPP gate could not check this MCP server ({e.__class__.__name__}): {e}"
+        out = hook_output(a[1], d, why)
+        if out is not None:
+            print(json.dumps(out))
+        return 0
+    if a and a[0] == "check-config":
+        bom = _opt(a, "--cyclonedx")
+        try:
+            status, lines = check_config(a[1:] or None, bom=bom)
         except VerifyError as e:
             print(f"INVALID — {e}")
             return 1

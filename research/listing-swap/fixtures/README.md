@@ -30,18 +30,6 @@ re-diffing history. It never replaces the client re-pinning against its own exac
 | 04 | non-semver-ordering | `remotesChanged: true` | re-consent | "Previous" resolved by `publishedAt`, not the text version sort. |
 | 05 | tools-only-drift | all `false` | re-consent | Target byte-identical; tool contract changed — only the client (via `tools/list`) can see it. |
 | 06 | unknown-no-baseline | `UNKNOWN` (absent) | ask | No parseable prior version. Absent ≠ unchanged; never auto-pass. |
-| 07 | version-ordering-record | `remotesChanged: true` (by `publishedAt`) | re-consent | A 3-version history where a naive version-string sort picks the wrong current+previous and **silently passes**, while `publishedAt` ordering catches the real origin change. |
-
-### Case 05 — executable `tools/list` arrays
-
-Case 05's drift lives only in `tools/list`, so the pair ships client-side arrays alongside the server.json:
-- `05-tools-only-drift/a.tools.json` / `b.tools.json` — the `result.tools` arrays a client observes (A = baseline, B = current).
-- `05-tools-only-drift/tools.expected.json` — the tool delta a client must act on: `send_email` added (write/destructive) and `read_doc`'s `readOnlyHint` flipped `true → false` under the same name and `inputSchema`. The registry cannot see any of it.
-
-### Case 07 — version-ordering record
-
-- `07-version-ordering-record/versions.json` — a synthetic `GET /servers/{name}/versions` record for one server, listed in **descending version-string order on purpose** to bait a text/semver-sort consumer. Current is the latest `publishedAt`, not the highest version string.
-- `07-version-ordering-record/expected.json` — correct resolution by `publishedAt` (`remotesChanged: true`) vs the naive version-desc trap (`remotesChanged: false`, a dangerous silent pass). The divergence is the test.
 
 ## Comparison policy encoded here
 
