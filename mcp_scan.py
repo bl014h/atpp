@@ -21,14 +21,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import atpp  # noqa: E402  — the public verifier; signing, statements and the pinned badge live there
 import artifacts  # noqa: E402  — exact digests and build provenance behind each package
+import tooldefs  # noqa: E402  — fingerprints of the tool definitions remote servers advertise
 
 SIGN_KEY_ID = "atpp-scan-2026-10"
 SIGN_KEY_PATH = os.environ.get("ATPP_SIGNING_KEY", os.path.expanduser("~/.secrets/atpp-scan-ed25519.pem"))
 MANIFEST_KEY = "atf:manifest:latest"   # the Worker serves it at /v/log/latest.json
 
 REGISTRY = "https://registry.modelcontextprotocol.io/v0/servers"
-RULES_VERSION = "atf-5"   # atf-2: artifact-hash scoped to MCPB; atf-3: + oci-digest; atf-4: + target-stable;
-                          # atf-5: + artifact-resolves, build-provenance, resolved digests in the claim
+RULES_VERSION = "atf-6"   # atf-2: artifact-hash scoped to MCPB; atf-3: + oci-digest; atf-4: + target-stable;
+                          # atf-5: + artifact-resolves, build-provenance, resolved digests in the claim;
+                          # atf-6: + tools-stable (remote tool-definition fingerprints)
 VALID_DAYS = 7          # a scan expires; past valid_until the badge renders grey
 KV_TTL_DAYS = 21        # keep an expired score around so /v/ can still explain it
 KV_BINDING = "ATF_SCORES"
@@ -197,10 +199,18 @@ def install_keys(sv):
     return sorted(k for k in keys if k)
 
 
+def first_record(sv):
+    """What target-stable needs from the first published version, small enough to keep in state.json."""
+    return {"version": sv.get("version"),
+            "remotes": [{"url": r.get("url")} for r in sv.get("remotes") or []],
+            "packages": [{"registryType": p.get("registryType"), "identifier": p.get("identifier")}
+                         for p in sv.get("packages") or []]}
+
+
 def chk_target_stable(sv, first):
     """Listing swap: same name, but the endpoint domain or package owner is not the one first published.
     Trust attaches to the name; nothing in an MCP client asks again when what it points at changes."""
-    if not first or first is sv:
+    if not first or first is sv or (first.get("version") and first.get("version") == sv.get("version")):
         return None
     r1, p1 = targets(first)
     r2, p2 = targets(sv)
@@ -251,7 +261,24 @@ def chk_artifacts(sv, arts):
     return checks, rows
 
 
-def score(sv, prev=None, first=None, arts=None):
+def chk_tools_stable(sv, prev, now):
+    """The server's advertised tool definitions changed while its version did not. Hosted servers redeploy
+    without bumping their registry version all the time, so on its own this is a prompt to re-review the tool
+    descriptions, not a failure: `score` fails it only alongside a listing swap or a build the scan could not
+    vouch for, which is the rug-pull pattern (OWASP MCP03). A change that comes with a new version passes;
+    there is nothing to compare on first sight. Returns (ok, detail, review)."""
+    was = (prev or {}).get("tools")
+    if not now or "sha256" not in now or not was or not was.get("sha256"):
+        return None
+    if was["sha256"] == now["sha256"]:
+        return True, f"tool definitions ({now['count']}) unchanged since {was.get('as_of', 'the previous scan')}", False
+    if was.get("version") != (sv.get("version") or "latest"):
+        return True, f"tool definitions changed with the new version {sv.get('version')} (was {was.get('version')})", False
+    return True, (f"tool definitions changed since {was.get('as_of', 'the previous scan')} without a new version "
+                  f"({sv.get('version')}): re-review the tool descriptions"), True
+
+
+def score(sv, prev=None, first=None, arts=None, tools=None):
     checks, passed = [], 0
     for cid, fn in CHECKS:
         r = fn(sv)
@@ -270,6 +297,14 @@ def score(sv, prev=None, first=None, arts=None):
         for cid, ok, detail in extra:
             passed += bool(ok)
             checks.append({"id": cid, "pass": bool(ok), "detail": detail})
+    r = chk_tools_stable(sv, prev, tools)
+    if r is not None:
+        ok, detail, review = r
+        risky = [c["id"] for c in checks if not c["pass"] and c["id"] in ("target-stable", "artifact-resolves", "build-provenance")]
+        if review and risky:            # a tool change on top of a swapped target or an unvouched build: the rug-pull pattern
+            ok, detail = False, f"{detail}, and {', '.join(risky)} failed: the rug-pull pattern, do not trust it by name"
+        passed += bool(ok)
+        checks.append({"id": "tools-stable", "pass": bool(ok), "detail": detail, **({"review": True} if review else {})})
     h = manifest_hash(sv)
     if prev and prev.get("sha256"):
         ok = prev["sha256"] == h
@@ -287,16 +322,18 @@ def score(sv, prev=None, first=None, arts=None):
         "rules_version": RULES_VERSION,
         "checks": checks,
         **({"artifacts": rows} if rows else {}),
+        **({"tools": {"sha256": tools["sha256"], "count": tools["count"]}} if tools and "sha256" in tools else {}),
     }
 
 
 # ---------------------------------------------------------------- registry
-def fetch_registry(cache=None, limit=100):
+def fetch_registry(cache=None, limit=100, all_versions=False):
+    """Latest version of every server, or with all_versions every version ever published (~3x the pages)."""
     if cache and os.path.exists(cache):
         return json.load(open(cache))
     out, cur, fails = [], None, 0
     while True:
-        u = f"{REGISTRY}?version=latest&limit={limit}" + (f"&cursor={urllib.parse.quote(cur)}" if cur else "")
+        u = f"{REGISTRY}?{'' if all_versions else 'version=latest&'}limit={limit}" + (f"&cursor={urllib.parse.quote(cur)}" if cur else "")
         try:
             d = json.load(urllib.request.urlopen(u, timeout=FETCH_TIMEOUT))
             fails = 0
@@ -367,6 +404,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="scanner/out")
     ap.add_argument("--cache", help="reuse a saved registry dump instead of refetching")
+    ap.add_argument("--no-tools", action="store_true", help="skip fetching remote tool lists (tools-stable)")
+    ap.add_argument("--all-versions", action="store_true",
+                    help="fetch every version, not just the latest: rebuilds each server's first-published record "
+                         "for target-stable (daily runs keep it in state.json)")
     ap.add_argument("--publish", action="store_true", help="push changed scores to KV via wrangler")
     ap.add_argument("--report", help="also write the aggregate here (the subsite reads trust/mcp-scan.json)")
     ap.add_argument("--max-writes", type=int, default=900, help="ignored since sharding (a run is ~260 writes); kept so old callers still work")
@@ -381,7 +422,7 @@ def main():
     state_path = os.path.join(a.out, "state.json")
     state = json.load(open(state_path)) if os.path.exists(state_path) else {}
 
-    servers = fetch_registry(a.cache)
+    servers = fetch_registry(a.cache, all_versions=a.all_versions)
     latest, first = {}, {}
     for s in servers:                    # the registry returns every version; keep the newest per name
         sv = s.get("server") or {}
@@ -397,6 +438,8 @@ def main():
             first[name] = (sv, meta)
 
     arts = artifacts.resolve_all([sv for sv, _m in latest.values()], os.path.join(a.out, "artifacts.json"))
+    tools = {} if a.no_tools or a.cache else tooldefs.fetch_all([sv for sv, _m in latest.values()])
+    firsts = {}
     scores, first_seen, drifted, exemplars = {}, [], [], []
     # Who else claims this repo? `source-published` only checks that a repository URL is PRESENT, so a
     # listing can declare anyone's repo -- including the registry's own. Counting distinct servers per
@@ -404,7 +447,12 @@ def main():
     src_claims, owner_mismatch, src_declared = {}, 0, 0
     agg = {"servers": 0, "checks": {}, "passed_all": 0}
     for name, (sv, _meta) in sorted(latest.items()):
-        sc = score(sv, state.get(name), (first.get(name) or (None,))[0], arts)
+        # A daily run sees only the latest version, so the first-published record comes from state, where an
+        # --all-versions run (or the server's first appearance) put it. A full fetch is the authority.
+        seen = (first.get(name) or (None,))[0]
+        firstsv = seen if a.all_versions or a.cache else ((state.get(name) or {}).get("first") or seen)
+        firsts[name] = first_record(firstsv) if firstsv else None
+        sc = score(sv, state.get(name), firstsv, arts, tools.get(name))
         scores[name] = sc
         agg["servers"] += 1
         gh = _gh_repo(sv)
@@ -441,6 +489,9 @@ def main():
     shared = sorted(((v["display"], len(v["names"])) for v in src_claims.values() if len(v["names"]) > 1),
                     key=lambda x: -x[1])
     agg["listing_swaps"] = sum(1 for sc in scores.values() for c in sc["checks"] if c["id"] == "target-stable" and not c["pass"])
+    agg["tools_fingerprinted"] = sum(1 for v in tools.values() if "sha256" in v)
+    agg["tools_changed_without_version_bump"] = sum(1 for sc in scores.values() for c in sc["checks"] if c["id"] == "tools-stable" and c.get("review"))
+    agg["tools_rug_pull_pattern"] = sum(1 for sc in scores.values() for c in sc["checks"] if c["id"] == "tools-stable" and not c["pass"])
     agg["source_declared"] = src_declared
     agg["source_owner_mismatch"] = owner_mismatch
     agg["source_shared_servers"] = sum(n for _r, n in shared)
@@ -487,7 +538,9 @@ def main():
     bulk_path = os.path.join(a.out, "kv-bulk.json")
     json.dump(bulk, open(bulk_path, "w"))
     env = dict(os.environ, CLOUDFLARE_ACCOUNT_ID=os.environ.get("CLOUDFLARE_ACCOUNT_ID", ""))
-    env.pop("CLOUDFLARE_API_TOKEN", None)   # the cached wrangler login is the one that works
+    env.pop("CLOUDFLARE_API_TOKEN", None)   # on the Mac the cached wrangler login is the one that works
+    if os.environ.get("ATF_CF_TOKEN"):      # in CI: a token scoped to Workers KV, passed under its own name
+        env["CLOUDFLARE_API_TOKEN"] = os.environ["ATF_CF_TOKEN"]
     r = subprocess.run(["npx", "wrangler", "kv", "bulk", "put", os.path.abspath(bulk_path),
                         "--binding", KV_BINDING, "--remote"],
                        cwd="workers/atf-badge", env=env)
@@ -504,7 +557,14 @@ def main():
         log_entry["rekor"] = None
         print(f"Rekor anchor failed ({e}); the public git log still commits to the manifest")
     json.dump(log_entry, open(os.path.join(a.out, "log-entry.json"), "w"), indent=1)   # only after a successful publish
-    state = {n: {"sha256": sc["sha256"], "as_of": sc["as_of"]} for n, sc in scores.items()}
+    def tools_state(n, sc):                 # today's fingerprint, or yesterday's carried forward if the fetch failed
+        t = tools.get(n) or {}
+        if "sha256" in t:
+            return {"sha256": t["sha256"], "version": sc.get("version"), "as_of": sc["as_of"]}
+        return (old_state.get(n) or {}).get("tools")
+    old_state = state
+    state = {n: {"sha256": sc["sha256"], "as_of": sc["as_of"], "first": firsts.get(n), "tools": tools_state(n, sc)}
+             for n, sc in scores.items()}
     json.dump(state, open(state_path, "w"), indent=1)
     print(f"published {len(scores)} scores in {SHARDS} shards + signed report and name index ({len(bulk)} KV writes)")
 
