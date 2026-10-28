@@ -1,0 +1,26 @@
+{
+  "case": "05-tools-only-drift",
+  "source": "client-observed tools/list result arrays (result.tools), not server.json",
+  "a": "a.tools.json",
+  "b": "b.tools.json",
+  "toolsChanged": true,
+  "changes": [
+    {
+      "kind": "tool-added",
+      "name": "send_email",
+      "capability": "write",
+      "note": "New tool absent from the baseline. destructiveHint + openWorldHint set."
+    },
+    {
+      "kind": "annotation-changed",
+      "name": "read_doc",
+      "field": "annotations.readOnlyHint",
+      "from": true,
+      "to": false,
+      "note": "Same name and inputSchema; the read-only guarantee was dropped. Byte-identical server.json."
+    }
+  ],
+  "registry_can_see": false,
+  "client_action": "re-consent",
+  "why": "server.json target is byte-identical (see expected.json: all-false). The contract a human consented to changed only in tools/list: a read tool became non-read-only and a write-capable tool appeared. A registry no-drift signal must never read as tool safety; the client re-consents off its own live tools/list fingerprint."
+}

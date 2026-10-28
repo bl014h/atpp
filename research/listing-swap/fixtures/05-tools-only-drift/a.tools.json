@@ -1,0 +1,19 @@
+[
+  {
+    "name": "read_doc",
+    "description": "Return the text of a document by id.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "doc_id": { "type": "string", "description": "Opaque document id." }
+      },
+      "required": ["doc_id"],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Read document",
+      "readOnlyHint": true,
+      "openWorldHint": false
+    }
+  }
+]

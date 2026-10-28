@@ -1,0 +1,34 @@
+{
+  "case": "07-version-ordering-record",
+  "input": "versions.json (3 versions of io.example.fixtures/zeta, same name)",
+  "resolution_policy": "publishedAt (versions endpoint is publication-date ordered); never the version text/semver sort",
+  "by_publishedAt": {
+    "current": "1.5.0 (publishedAt 2026-03-01)",
+    "previousPublished": "1.4.0 (publishedAt 2026-02-01)",
+    "first": "2.0.0 (publishedAt 2026-01-01)",
+    "registry_targetDrift": {
+      "comparedTo": { "previousPublished": "1.4.0", "first": "2.0.0" },
+      "remotesChanged": true,
+      "packageOwnersChanged": false,
+      "repositoryChanged": false,
+      "changes": [
+        {
+          "kind": "remote",
+          "field": "url.origin",
+          "from": "api.zeta.example",
+          "to": "api.zeta-new.example",
+          "comparedTo": "previousPublished"
+        }
+      ]
+    },
+    "client_action": "re-consent"
+  },
+  "naive_version_desc_trap": {
+    "picks_current": "2.0.0 (highest version string)",
+    "picks_previous": "1.5.0 (second-highest version string)",
+    "would_report": { "remotesChanged": false },
+    "verdict": "DANGEROUS SILENT PASS",
+    "why": "Both 2.0.0 and 1.5.0 carry origin api.zeta-new.example, so a version-desc consumer sees no change and auto-passes. It compared the wrong two records: the true current by date (1.5.0, Mar) and its true predecessor (1.4.0, Feb) differ in origin (zeta -> zeta-new). The real target change is hidden by the version-string ordering."
+  },
+  "assert": "A correct consumer resolves current+previous by publishedAt and emits remotesChanged:true. A consumer that sorts by version string emits remotesChanged:false on the same record. The two must diverge here; that divergence is the test."
+}

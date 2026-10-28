@@ -1,0 +1,35 @@
+{
+  "_comment": "Synthetic GET /servers/{name}/versions record for publishedAt-vs-version testing. Entries are listed here in DESCENDING version-string order on purpose, to bait a consumer that trusts the text/semver sort instead of publishedAt. The registry's versions endpoint is ordered by publication date; publishedAt is a first-class field. Current = latest publishedAt (NOT highest version string).",
+  "servers": [
+    {
+      "name": "io.example.fixtures/zeta",
+      "description": "A synthetic fixture server.",
+      "version": "2.0.0",
+      "repository": { "url": "https://github.com/example-fixtures/zeta", "source": "github" },
+      "remotes": [ { "type": "streamable-http", "url": "https://api.zeta-new.example/mcp" } ],
+      "_meta": {
+        "io.modelcontextprotocol.registry/official": { "publishedAt": "2026-01-01T00:00:00Z" }
+      }
+    },
+    {
+      "name": "io.example.fixtures/zeta",
+      "description": "A synthetic fixture server.",
+      "version": "1.5.0",
+      "repository": { "url": "https://github.com/example-fixtures/zeta", "source": "github" },
+      "remotes": [ { "type": "streamable-http", "url": "https://api.zeta-new.example/mcp" } ],
+      "_meta": {
+        "io.modelcontextprotocol.registry/official": { "publishedAt": "2026-03-01T00:00:00Z" }
+      }
+    },
+    {
+      "name": "io.example.fixtures/zeta",
+      "description": "A synthetic fixture server.",
+      "version": "1.4.0",
+      "repository": { "url": "https://github.com/example-fixtures/zeta", "source": "github" },
+      "remotes": [ { "type": "streamable-http", "url": "https://api.zeta.example/mcp" } ],
+      "_meta": {
+        "io.modelcontextprotocol.registry/official": { "publishedAt": "2026-02-01T00:00:00Z" }
+      }
+    }
+  ]
+}
