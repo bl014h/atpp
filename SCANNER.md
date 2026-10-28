@@ -60,14 +60,15 @@ package to pin.
 | `build-provenance` | a package's Sigstore build record names a different repository than the listing declares |
 | `target-stable` | the remote domain or package owner now differs from the first published version (a *listing swap*) |
 | `unchanged-since-last-scan` | the manifest changed since the previous scan (exists from the second scan on) — the one that means "re-review your approval" |
+| `tools-stable` | a server changed a tool definition (schema or annotations) or added a write-capable tool without bumping its version |
 
 ### Rules version
 
-This snapshot is **`atf-5`**. The live service currently runs **`atf-6`**, which adds
-tool-definition drift detection (a server that changed a tool's schema or annotations, or added a
-write-capable tool, without a version bump). That addition is tracked in the project CHANGELOG and
-will land here; the scoring above is otherwise identical. `rules_version` is written into every
-aggregate so a consumer always knows which rule set produced a number.
+This is **`atf-6`**, the same rule set the live daily scan runs. It includes tool-definition
+drift (`tools-stable`): a server that changed a tool's schema or annotations, or added a
+write-capable tool, without a version bump. The aggregate also reports `tools_fingerprinted`,
+`tools_changed_without_version_bump`, and `tools_rug_pull_pattern`. `rules_version` is written into
+every aggregate so a consumer always knows which rule set produced a number.
 
 ## How a listing swap is detected
 
