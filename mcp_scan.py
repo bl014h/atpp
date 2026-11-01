@@ -14,7 +14,7 @@ State lives in <out>/state.json (manifest hash per server) so the next run can t
 listings drifted. Every run publishes every score, grouped into 256 KV shards (~260 writes),
 so no badge outlives the run that scored it.
 """
-import argparse, json, os, re, subprocess, sys, time, urllib.parse, urllib.request
+import argparse, base64, json, os, re, subprocess, sys, time, urllib.parse, urllib.request
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tools", "atpp"))
@@ -23,9 +23,11 @@ import atpp  # noqa: E402  — the public verifier; signing, statements and the 
 import artifacts  # noqa: E402  — exact digests and build provenance behind each package
 import tooldefs  # noqa: E402  — fingerprints of the tool definitions remote servers advertise
 
-SIGN_KEY_ID = "atpp-scan-2026-10"
+SIGN_KEY_ID = os.environ.get("ATPP_SCAN_KEY_ID") or "atpp-scan-2026-10"   # must be listed in the root-signed key list
 SIGN_KEY_PATH = os.environ.get("ATPP_SIGNING_KEY", os.path.expanduser("~/.secrets/atpp-scan-ed25519.pem"))
 MANIFEST_KEY = "atf:manifest:latest"   # the Worker serves it at /v/log/latest.json
+INDEX_KEY = "atf:index:latest"         # small signed pointer to the current publish; the Worker checks every shard against it
+PREV_INDEX_MAX_AGE = timedelta(days=3)  # a previous index older than this is not carried as `prev`
 
 REGISTRY = "https://registry.modelcontextprotocol.io/v0/servers"
 RULES_VERSION = "atf-6"   # atf-2: artifact-hash scoped to MCPB; atf-3: + oci-digest; atf-4: + target-stable;
@@ -38,8 +40,61 @@ AGG_KEY = "atf:aggregate"       # the Worker serves this at /mcp-scan.json, so a
 NAMES_KEY = "atf:names"         # the Worker serves this at /mcp-names.json for the badge search
 FETCH_TIMEOUT = 75               # seconds per registry page
 FETCH_RETRIES = 12               # consecutive failures before a run gives up (~10 min of backoff)
+SIGN_CHUNK = 1000               # envelopes signed per sign_many call: bounds memory, one signer round trip each
 SHARDS = 256                    # every score, every run, in SHARDS KV values: ~260 writes a day,
                                 # inside the free plan, and no badge can outlive the run that scored it
+
+# ---------------------------------------------------------------- signing key
+def load_signing_key(path=None):
+    """What atpp.sign / atpp.sign_many sign with, or None when no key is configured. With ATPP_SIGNER_ADDR
+    (+ ATPP_SIGNER_TOKEN) set it is a RemoteKey: the key stays in the ATPP signer (app/signer.py) and this
+    process can only ask for signatures. Otherwise the PEM file at `path`, as before. The signer's public key
+    for SIGN_KEY_ID must be the one in the pinned root-signed key list, or we refuse before doing any work.
+    Raises SystemExit with a message (never one containing key material or the token)."""
+    addr = os.environ.get("ATPP_SIGNER_ADDR")
+    if addr:
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app"))
+        try:
+            import signer
+        except ImportError:
+            sys.exit("ATPP_SIGNER_ADDR is set but app/signer.py is not next to this scanner (deploy/vm/sync-scan.sh copies it)")
+        key = signer.Client(addr, token=os.environ.get("ATPP_SIGNER_TOKEN") or None, keep=True).remote_key(SIGN_KEY_ID)
+        try:
+            from cryptography.hazmat.primitives import serialization as _ser   # public_bytes_raw() needs cryptography>=40; the scan VM has 3.4
+            pub = base64.b64encode(key.public_key().public_bytes(_ser.Encoding.Raw, _ser.PublicFormat.Raw)).decode()
+        except signer.SignerError as e:
+            sys.exit(f"signer at {addr} cannot sign as {SIGN_KEY_ID}: {e}")
+        if pub != atpp.KEYS.get(SIGN_KEY_ID):
+            sys.exit(f"the signer's public key for {SIGN_KEY_ID} is not the one in the pinned key list: refusing to sign")
+        print(f"signing through the signer at {addr} as {SIGN_KEY_ID}")
+        return key
+    if path and os.path.exists(path):
+        print(f"signing with the key file {path} as {SIGN_KEY_ID}")
+        return atpp.load_private_key(path)
+    return None
+
+
+def selftest_sign(n, key):
+    """Sign `n` synthetic scores (one batched call, plus one single sign) and verify each envelope with the
+    public verifier against the pinned key list, offline. Publishes nothing, writes nothing. Returns True on success."""
+    scores = {}
+    for i in range(n):
+        sc = score({"name": f"selftest/server-{i}", "version": "1.0.0", "remotes": [{"type": "streamable-http", "url": f"https://selftest-{i}.example/mcp"}]})
+        scores[f"selftest/server-{i}"] = sc
+    shards = build_shards(scores, datetime.now(timezone.utc).strftime("%Y-%m-%d"), "9999-12-31", key)
+    envs = [e for sh in shards for e in sh["s"].values()]
+    envs.append(atpp.sign(atpp.PAYLOAD_TYPE, atpp.statement("selftest/single", next(iter(scores.values()))), key, SIGN_KEY_ID))
+    bad = 0
+    for e in envs:
+        try:
+            status, _ = atpp.check(e, online=False)
+            bad += status != 0
+        except atpp.VerifyError as ex:
+            bad += 1
+            print(f"selftest: envelope did not verify: {ex}")
+    print(f"selftest: {len(envs) - bad} of {len(envs)} envelopes signed as {SIGN_KEY_ID} verify against the pinned key list")
+    return bad == 0 and len(envs) == n + 1
+
 
 # ---------------------------------------------------------------- checks
 # Each check: (id, title, fn(server_manifest) -> (pass: bool, detail: str)).
@@ -378,10 +433,15 @@ def build_shards(scores, as_of, valid_until, key=None):
     old unsigned tuple, which the Worker now treats as "unsigned" (grey) — so it is only for tests."""
     shards = [{"as_of": as_of, "valid_until": valid_until, "rules_version": RULES_VERSION, "s": {}}
               for _ in range(SHARDS)]
-    for n, sc in scores.items():
-        if key is not None:
-            shards[shard_of(n)]["s"][n] = atpp.sign(atpp.PAYLOAD_TYPE, atpp.statement(n, sc), key, SIGN_KEY_ID)
-        else:
+    names = list(scores)
+    if key is not None:
+        for i in range(0, len(names), SIGN_CHUNK):       # a remote signer signs each chunk in a few round trips
+            part = names[i:i + SIGN_CHUNK]
+            envs = atpp.sign_many(atpp.PAYLOAD_TYPE, [atpp.statement(n, scores[n]) for n in part], key, SIGN_KEY_ID)
+            for n, env in zip(part, envs):
+                shards[shard_of(n)]["s"][n] = env
+    else:
+        for n, sc in scores.items():
             shards[shard_of(n)]["s"][n] = [sc["passed"], sc["total"], sc.get("version"), sc.get("sha256"),
                                            [[c["id"], int(c["pass"]), c["detail"]] for c in sc["checks"]]]
     return shards
@@ -400,6 +460,65 @@ def build_manifest(shards, as_of, key, reports=None):
                  "manifest_sha256": atpp.envelope_sha256(env)}
 
 
+def attach_shard_manifests(shards, manifest_sha256, issued, key):
+    """Sign each shard's slice of the day's manifest INTO the shard (field `m`): the sorted sha256 of every
+    envelope in it, the publish time and the full manifest's hash. The Worker can then check the envelope it
+    serves against its own shard, with no second KV read to disagree with it. Names are not repeated: each
+    envelope's signed subject already names its server. A no-op without a key (tests only)."""
+    if key is None:
+        return
+    for i, sh in enumerate(shards):
+        body = {"_type": "https://millenniums.ai/atpp/shardman/v1", "shard": i, "issued": issued, "keyid": SIGN_KEY_ID,
+                "manifest_sha256": manifest_sha256, "h": sorted(atpp.envelope_sha256(e) for e in sh["s"].values())}
+        sh["m"] = atpp.sign(atpp.SHARDMAN_TYPE, body, key, SIGN_KEY_ID)
+
+
+def build_index(manifest_sha256, count, as_of, issued, valid_until, key, prev=None):
+    """The small signed pointer (~0.7 KB) to the current publish: which manifest is current and which one it
+    replaced. `prev` lets the Worker keep accepting last publish's shards for a short grace while edge caches
+    and a non-atomic KV write catch up; it is {issued, manifest_sha256} of the index it replaced, or None."""
+    body = {"_type": "https://millenniums.ai/atpp/index/v1", "date": as_of, "issued": issued, "valid_until": valid_until,
+            "keyid": SIGN_KEY_ID, "manifest_sha256": manifest_sha256, "count": count, "shards": SHARDS, "prev": prev}
+    return atpp.sign(atpp.INDEX_TYPE, body, key, SIGN_KEY_ID)
+
+
+def prev_from_index(doc, now):
+    """{issued, manifest_sha256} from an index document read back from KV, or None unless it carries our
+    signature, is not from the future and is younger than PREV_INDEX_MAX_AGE. KV is writable by anyone holding the
+    Cloudflare token, so what we read back is checked before it is signed into the next index."""
+    try:
+        b = atpp.open_envelope(doc, atpp.INDEX_TYPE)
+        t = datetime.strptime(b["issued"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        if b.get("_type") != "https://millenniums.ai/atpp/index/v1" or not t < now or now - t > PREV_INDEX_MAX_AGE:
+            return None
+        return {"issued": b["issued"], "manifest_sha256": b["manifest_sha256"]}
+    except Exception:
+        return None
+
+
+def _cf_env():
+    env = dict(os.environ, CLOUDFLARE_ACCOUNT_ID=os.environ.get("CLOUDFLARE_ACCOUNT_ID", ""))
+    env.pop("CLOUDFLARE_API_TOKEN", None)   # on the Mac the cached wrangler login is the one that works
+    if os.environ.get("ATF_CF_TOKEN"):      # in CI: a token scoped to Workers KV, passed under its own name
+        env["CLOUDFLARE_API_TOKEN"] = os.environ["ATF_CF_TOKEN"]
+    return env
+
+
+def fetch_prev_index(env, now):
+    """The index live in KV right now, as `prev` for the next one. Any failure (first publish, network) -> None:
+    the only cost is that last publish's shards are not tolerated for the grace window."""
+    r = subprocess.run(["npx", "wrangler", "kv", "key", "get", INDEX_KEY, "--binding", KV_BINDING, "--remote"],
+                       cwd="workers/atf-badge", env=env, capture_output=True, text=True)
+    try:
+        prev = prev_from_index(json.loads(r.stdout), now) if r.returncode == 0 else None
+    except ValueError:
+        prev = None
+    if prev is None:
+        print("no previous index carried (first indexed publish, or KV's copy did not verify): the Worker will not "
+              "tolerate last publish's shards during the grace window")
+    return prev
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="scanner/out")
@@ -411,13 +530,17 @@ def main():
     ap.add_argument("--publish", action="store_true", help="push changed scores to KV via wrangler")
     ap.add_argument("--report", help="also write the aggregate here (the subsite reads trust/mcp-scan.json)")
     ap.add_argument("--max-writes", type=int, default=900, help="ignored since sharding (a run is ~260 writes); kept so old callers still work")
-    ap.add_argument("--sign-key", default=SIGN_KEY_PATH, help="Ed25519 PEM that signs every score (required with --publish)")
+    ap.add_argument("--sign-key", default=SIGN_KEY_PATH, help="Ed25519 PEM that signs every score (--publish needs it, or the signer: ATPP_SIGNER_ADDR)")
+    ap.add_argument("--selftest-sign", type=int, metavar="N", help="sign N synthetic scores with the configured key or signer, verify "
+                    "them against the pinned key list, and exit; publishes and writes nothing")
     a = ap.parse_args()
     key = None
-    if a.publish:                        # never publish an unsigned claim: the Worker would render it grey anyway
-        if not os.path.exists(a.sign_key):
-            sys.exit(f"--publish needs the signing key at {a.sign_key} (ATPP_SIGNING_KEY); refusing to publish unsigned scores")
-        key = atpp.load_private_key(a.sign_key)
+    if a.publish or a.selftest_sign:     # never publish an unsigned claim: the Worker would render it grey anyway
+        key = load_signing_key(a.sign_key)
+        if key is None:
+            sys.exit(f"--publish needs a signing key: the signer (ATPP_SIGNER_ADDR) or the key file {a.sign_key} (ATPP_SIGNING_KEY); refusing to publish unsigned scores")
+    if a.selftest_sign:
+        sys.exit(0 if selftest_sign(a.selftest_sign, key) else 1)
     os.makedirs(a.out, exist_ok=True)
     state_path = os.path.join(a.out, "state.json")
     state = json.load(open(state_path)) if os.path.exists(state_path) else {}
@@ -526,6 +649,16 @@ def main():
     reports = {"mcp-scan": atpp.sign(atpp.REPORT_TYPE, agg, key, SIGN_KEY_ID),
                "mcp-names": atpp.sign(atpp.REPORT_TYPE, names_doc, key, SIGN_KEY_ID)}
     manifest, log_entry = build_manifest(shards, as_of, key, reports)
+    # Everything the signer has to sign is signed before the first KV write, so a signer that dies mid-run
+    # leaves KV and state untouched (the anchor used to be signed after the write).
+    anc = atpp.sign(atpp.ANCHOR_TYPE, atpp.anchor(manifest, as_of, SIGN_KEY_ID), key, SIGN_KEY_ID)
+    anchor_pem = atpp.public_pem(key)
+    env = _cf_env()
+    now = datetime.now(timezone.utc)
+    issued = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    attach_shard_manifests(shards, log_entry["manifest_sha256"], issued, key)
+    index = build_index(log_entry["manifest_sha256"], log_entry["count"], as_of, issued, valid_until, key,
+                        fetch_prev_index(env, now))
     c = lambda o: json.dumps(o, separators=(",", ":"))
     bulk = [{"key": shard_key(i), "value": c(d)} for i, d in enumerate(shards)]
     bulk.append({"key": NAMES_KEY, "value": c(names_doc)})
@@ -535,12 +668,11 @@ def main():
     bulk.append({"key": MANIFEST_KEY, "value": json.dumps(manifest, separators=(",", ":"))})
     bulk.append({"key": f"atf:manifest:{as_of}", "value": json.dumps(manifest, separators=(",", ":")),
                  "expiration_ttl": KV_TTL_DAYS * 86400})
+    # The index goes last in the file, but nothing depends on it: the Worker accepts a shard from this publish, from
+    # the previous one (for a grace window) or from a newer one, so every interleaving of this non-atomic write is safe.
+    bulk.append({"key": INDEX_KEY, "value": c(index)})
     bulk_path = os.path.join(a.out, "kv-bulk.json")
     json.dump(bulk, open(bulk_path, "w"))
-    env = dict(os.environ, CLOUDFLARE_ACCOUNT_ID=os.environ.get("CLOUDFLARE_ACCOUNT_ID", ""))
-    env.pop("CLOUDFLARE_API_TOKEN", None)   # on the Mac the cached wrangler login is the one that works
-    if os.environ.get("ATF_CF_TOKEN"):      # in CI: a token scoped to Workers KV, passed under its own name
-        env["CLOUDFLARE_API_TOKEN"] = os.environ["ATF_CF_TOKEN"]
     r = subprocess.run(["npx", "wrangler", "kv", "bulk", "put", os.path.abspath(bulk_path),
                         "--binding", KV_BINDING, "--remote"],
                        cwd="workers/atf-badge", env=env)
@@ -548,10 +680,9 @@ def main():
         sys.exit(f"KV bulk put failed ({r.returncode}); state not advanced")
     # Anchor the day's manifest in Sigstore Rekor — a public transparency log we do not control — so a day's
     # claims cannot be backdated or rewritten later even with full control of our own servers and repo.
-    anc = atpp.sign(atpp.ANCHOR_TYPE, atpp.anchor(manifest, as_of, SIGN_KEY_ID), key, SIGN_KEY_ID)
     log_entry["anchor"] = anc
     try:
-        log_entry["rekor"] = atpp.rekor_upload(anc, atpp.public_pem(key))
+        log_entry["rekor"] = atpp.rekor_upload(anc, anchor_pem)
         print(f"anchored in Rekor: log index {log_entry['rekor']['logIndex']}")
     except Exception as e:                                  # never lose a publish over the anchor
         log_entry["rekor"] = None
@@ -568,5 +699,15 @@ def main():
     json.dump(state, open(state_path, "w"), indent=1)
     print(f"published {len(scores)} scores in {SHARDS} shards + signed report and name index ({len(bulk)} KV writes)")
 
+def run():
+    try:
+        main()
+    except Exception as e:
+        if type(e).__name__ != "SignerError":       # app/signer.py is imported lazily, so match by name
+            raise
+        # all signing happens before the first KV write, so a signer that dies or refuses leaves KV and state untouched
+        sys.exit(f"signer failed: {e}; nothing was published and state was not advanced")
+
+
 if __name__ == "__main__":
-    main()
+    run()

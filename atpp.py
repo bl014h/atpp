@@ -41,6 +41,8 @@ KEYS, KEY_WINDOWS, KEYLIST_SERIAL = {}, {}, 0
 PAYLOAD_TYPE = "application/vnd.in-toto+json"
 MANIFEST_TYPE = "application/vnd.millenniums.atpp-manifest+json"
 REPORT_TYPE = "application/vnd.millenniums.atpp-report+json"
+INDEX_TYPE = "application/vnd.millenniums.atpp-index+json"        # the Worker's pointer to the current publish
+SHARDMAN_TYPE = "application/vnd.millenniums.atpp-shardman+json"  # one shard's slice of the day's manifest
 DISPUTE_TYPE = "application/vnd.millenniums.atpp-dispute+json"
 REPORTS = {"mcp-scan": "/mcp-scan.json", "mcp-names": "/mcp-names.json"}
 STATEMENT_TYPE = "https://in-toto.io/Statement/v1"
@@ -82,11 +84,24 @@ def _pub(keyid, keys):
     return ed25519.Ed25519PublicKey.from_public_bytes(base64.b64decode(keys[keyid]))
 
 
-def sign(payload_type, obj, private_key, keyid):
-    body = canonical(obj)
-    sig = private_key.sign(pae(payload_type, body))
+def _envelope(payload_type, body, sig, keyid):
     return {"payloadType": payload_type, "payload": base64.b64encode(body).decode(),
             "signatures": [{"keyid": keyid, "sig": base64.b64encode(sig).decode()}]}
+
+
+def sign(payload_type, obj, private_key, keyid):
+    """`private_key` is anything with .sign(bytes) -> bytes: an Ed25519PrivateKey, or a remote key bound to a signer."""
+    body = canonical(obj)
+    return _envelope(payload_type, body, private_key.sign(pae(payload_type, body)), keyid)
+
+
+def sign_many(payload_type, objs, private_key, keyid):
+    """sign() for a list, in order. A key with .sign_many (a remote signer) signs them in a few batched round
+    trips instead of one each; any failure raises and no partial list is returned."""
+    bodies = [canonical(o) for o in objs]
+    msgs = [pae(payload_type, b) for b in bodies]
+    sigs = private_key.sign_many(msgs) if hasattr(private_key, "sign_many") else [private_key.sign(m) for m in msgs]
+    return [_envelope(payload_type, b, g, keyid) for b, g in zip(bodies, sigs)]
 
 
 def open_envelope(env, payload_type=PAYLOAD_TYPE, keys=None, revoked=()):
