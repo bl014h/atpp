@@ -614,6 +614,9 @@ def main():
     agg["listing_swaps"] = sum(1 for sc in scores.values() for c in sc["checks"] if c["id"] == "target-stable" and not c["pass"])
     agg["tools_fingerprinted"] = sum(1 for v in tools.values() if "sha256" in v)
     agg["tools_changed_without_version_bump"] = sum(1 for sc in scores.values() for c in sc["checks"] if c["id"] == "tools-stable" and c.get("review"))
+    cards = [v["sd_card"] for v in tools.values() if "sd_card" in v]
+    agg["sd_cards"] = sum(1 for c in cards if "error" not in c)
+    agg["sd_card_tools_changed"] = sum(1 for c in cards if c.get("changed"))
     agg["tools_rug_pull_pattern"] = sum(1 for sc in scores.values() for c in sc["checks"] if c["id"] == "tools-stable" and not c["pass"])
     agg["source_declared"] = src_declared
     agg["source_owner_mismatch"] = owner_mismatch
