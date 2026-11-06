@@ -207,6 +207,8 @@ def statement(name, score, issuer=TRUST):
         pred["artifacts"] = score["artifacts"]
     if score.get("tools"):               # sha256 of the remote server's advertised tool definitions, and how many
         pred["tools"] = score["tools"]
+    if score.get("sd_card"):             # {verified, changed, unverified}: served tools vs the server's own Agent SD-Card
+        pred["sd_card"] = score["sd_card"]
     svg = render_badge(name, pred["version"], pred["passed"], pred["total"], pred["as_of"], pred["rules_version"])
     pred["badge_sha256"] = hashlib.sha256(svg.encode("utf-8")).hexdigest()
     return {"_type": STATEMENT_TYPE, "predicateType": PREDICATE_TYPE, "predicate": pred,

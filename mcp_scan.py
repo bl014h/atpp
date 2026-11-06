@@ -30,9 +30,10 @@ INDEX_KEY = "atf:index:latest"         # small signed pointer to the current pub
 PREV_INDEX_MAX_AGE = timedelta(days=3)  # a previous index older than this is not carried as `prev`
 
 REGISTRY = "https://registry.modelcontextprotocol.io/v0/servers"
-RULES_VERSION = "atf-6"   # atf-2: artifact-hash scoped to MCPB; atf-3: + oci-digest; atf-4: + target-stable;
+RULES_VERSION = "atf-7"   # atf-2: artifact-hash scoped to MCPB; atf-3: + oci-digest; atf-4: + target-stable;
                           # atf-5: + artifact-resolves, build-provenance, resolved digests in the claim;
-                          # atf-6: + tools-stable (remote tool-definition fingerprints)
+                          # atf-6: + tools-stable (remote tool-definition fingerprints);
+                          # atf-7: + sd-card-consistent (only for servers that publish an Agent SD-Card)
 VALID_DAYS = 7          # a scan expires; past valid_until the badge renders grey
 KV_TTL_DAYS = 21        # keep an expired score around so /v/ can still explain it
 KV_BINDING = "ATF_SCORES"
@@ -333,6 +334,24 @@ def chk_tools_stable(sv, prev, now):
                   f"({sv.get('version')}): re-review the tool descriptions"), True
 
 
+def chk_sd_card(tools):
+    """Only for a server that publishes an Agent SD-Card (draft-nandakumar-agent-sd-card-00, /.well-known/sd-card/mcp):
+    do the tool definitions it serves match the ones its own card discloses (Section 8.2.5)? The scan holds no
+    trusted-issuer list, so this judges the server against its OWN card, not the card's signature. None when the
+    server has no card (the normal case today): the check is dropped from the total, like any check that cannot apply."""
+    c = (tools or {}).get("sd_card")
+    if not c:
+        return None
+    if "error" in c:
+        return False, "publishes an Agent SD-Card the scan could not read: " + str(c["error"])[:80]
+    v, ch, un = int(c.get("verified", 0)), int(c.get("changed", 0)), int(c.get("unverified", 0))
+    if ch:
+        return False, (f"{ch} of {v + ch + un} served tool definitions differ from the server's own Agent SD-Card: "
+                       "a client that enforces the card must refuse them")
+    note = f"; {un} served tool(s) are not in the card and need approval" if un else ""
+    return True, f"all {v} tool definitions the card discloses match what the server serves{note}"
+
+
 def score(sv, prev=None, first=None, arts=None, tools=None):
     checks, passed = [], 0
     for cid, fn in CHECKS:
@@ -360,6 +379,10 @@ def score(sv, prev=None, first=None, arts=None, tools=None):
             ok, detail = False, f"{detail}, and {', '.join(risky)} failed: the rug-pull pattern, do not trust it by name"
         passed += bool(ok)
         checks.append({"id": "tools-stable", "pass": bool(ok), "detail": detail, **({"review": True} if review else {})})
+    r = chk_sd_card(tools)
+    if r is not None:
+        passed += bool(r[0])
+        checks.append({"id": "sd-card-consistent", "pass": bool(r[0]), "detail": r[1]})
     h = manifest_hash(sv)
     if prev and prev.get("sha256"):
         ok = prev["sha256"] == h
@@ -378,6 +401,8 @@ def score(sv, prev=None, first=None, arts=None, tools=None):
         "checks": checks,
         **({"artifacts": rows} if rows else {}),
         **({"tools": {"sha256": tools["sha256"], "count": tools["count"]}} if tools and "sha256" in tools else {}),
+        **({"sd_card": {k: int(v) for k, v in tools["sd_card"].items()}}
+           if tools and isinstance(tools.get("sd_card"), dict) and "error" not in tools["sd_card"] else {}),
     }
 
 
@@ -617,6 +642,7 @@ def main():
     cards = [v["sd_card"] for v in tools.values() if "sd_card" in v]
     agg["sd_cards"] = sum(1 for c in cards if "error" not in c)
     agg["sd_card_tools_changed"] = sum(1 for c in cards if c.get("changed"))
+    agg["sd_card_inconsistent"] = sum(1 for sc in scores.values() for c in sc["checks"] if c["id"] == "sd-card-consistent" and not c["pass"])
     agg["tools_rug_pull_pattern"] = sum(1 for sc in scores.values() for c in sc["checks"] if c["id"] == "tools-stable" and not c["pass"])
     agg["source_declared"] = src_declared
     agg["source_owner_mismatch"] = owner_mismatch

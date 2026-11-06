@@ -49,7 +49,10 @@ TOOLS = [
 def _claim_fields(env):
     st = json.loads(atpp.base64.b64decode(env["payload"]))
     p, subj = st.get("predicate") or {}, (st.get("subject") or [{}])[0]
-    return {"server": atpp.clean(str(subj.get("name", "")).removeprefix("mcp:"), 161),
+    card = next((c for c in (p.get("checks") or []) if isinstance(c, list) and len(c) == 3 and c[0] == "sd-card-consistent"), None)
+    return {"agent_sd_card": ({"published": True, "tools_match_card": bool(card[1]),
+                               "summary_untrusted": atpp.clean(card[2], 200)} if card else {"published": False}),
+            "server": atpp.clean(str(subj.get("name", "")).removeprefix("mcp:"), 161),
             "version": atpp.clean(p.get("version"), 64), "scanned_on": atpp._day(p.get("as_of")),
             "valid_until": atpp._day(p.get("valid_until")), "passed": p.get("passed"), "total": p.get("total"),
             "rules": atpp.clean(p.get("rules_version"), 16),
