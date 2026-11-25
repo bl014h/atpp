@@ -1,0 +1,194 @@
+{
+ "_generated_by": "tools/atpp/vectors/gen_constraint_comparison.py, do not edit",
+ "cases": {
+  "CC-1": {
+   "analogue": "A chain of nine receipts: the root and a leaf eight levels below it.",
+   "basis": "Section \"Chain Validation\"",
+   "note": "No per-receipt depth claim; a chain holds at most 8 receipts in all.",
+   "reason": "chain-length",
+   "result": "DENY"
+  },
+  "CC-10": {
+   "analogue": "A set replaced by a single-value constraint.",
+   "basis": "Section \"Grants and Attenuation\"",
+   "note": "No single-value type; a one-element array (CC-9) is the equivalent.",
+   "result": "N/A"
+  },
+  "CC-11": {
+   "analogue": "A child narrows methods to the empty array.",
+   "basis": "Section \"Grants and Attenuation\"",
+   "child": {
+    "host": "api.b.example",
+    "max_body_bytes": 100,
+    "methods": []
+   },
+   "note": "The empty set is a subset; the child then matches no request.",
+   "parent": {
+    "host": "api.b.example",
+    "max_body_bytes": 100,
+    "methods": [
+     "GET",
+     "POST"
+    ]
+   },
+   "result": "PERMIT"
+  },
+  "CC-12": {
+   "analogue": "A child writes max_body_bytes as 1.0 where its parent wrote 1.",
+   "basis": "Section \"Grants and Attenuation\"",
+   "child_text": "{\"host\": \"api.b.example\", \"methods\": [\"GET\", \"POST\"], \"max_body_bytes\": 1.0}",
+   "note": "max_body_bytes must be an integer; 1.0 is malformed.",
+   "parent": {
+    "host": "api.b.example",
+    "max_body_bytes": 1,
+    "methods": [
+     "GET",
+     "POST"
+    ]
+   },
+   "reason": "grant-malformed",
+   "result": "DENY"
+  },
+  "CC-13": {
+   "analogue": "Pinning an object with a one-element set.",
+   "basis": "Section \"Grants and Attenuation\"",
+   "note": "Grants carry no tool-argument constraints; the draft has no such construct.",
+   "result": "N/A"
+  },
+  "CC-14": {
+   "analogue": "Pinning an object with a single-value constraint.",
+   "basis": "Section \"Grants and Attenuation\"",
+   "note": "Grants carry no tool-argument constraints; the draft has no such construct.",
+   "result": "N/A"
+  },
+  "CC-2": {
+   "analogue": "A depth limit lowered by a holder.",
+   "basis": "Section \"Chain Validation\"",
+   "note": "No per-receipt depth claim to lower; the fixed chain limit applies to every chain.",
+   "result": "N/A"
+  },
+  "CC-3a": {
+   "analogue": "A child names tools where its parent left tools absent (unrestricted).",
+   "basis": "Section \"Grants and Attenuation\"",
+   "child": {
+    "host": "api.b.example",
+    "tools": [
+     "export"
+    ]
+   },
+   "parent": {
+    "host": "api.b.example"
+   },
+   "result": "PERMIT"
+  },
+  "CC-3b": {
+   "analogue": "The same; there is no partly open tools list to distinguish it from CC-3a.",
+   "basis": "Section \"Grants and Attenuation\"",
+   "child": {
+    "host": "api.b.example",
+    "tools": [
+     "export"
+    ]
+   },
+   "parent": {
+    "host": "api.b.example"
+   },
+   "result": "PERMIT"
+  },
+  "CC-4a": {
+   "analogue": "A request carries a body where the leaf leaves max_body_bytes absent.",
+   "basis": "Section \"Grants and Attenuation\"",
+   "note": "An absent member is compared as its default (0).",
+   "parent": {
+    "host": "api.b.example",
+    "methods": [
+     "POST"
+    ]
+   },
+   "reason": "request-not-granted",
+   "request": {
+    "body_bytes": 10,
+    "method": "POST"
+   },
+   "result": "DENY"
+  },
+  "CC-4b": {
+   "analogue": "A request invokes a tool where the leaf leaves tools absent.",
+   "basis": "Section \"Grants and Attenuation\"",
+   "parent": {
+    "host": "api.b.example"
+   },
+   "request": {
+    "tool": "export"
+   },
+   "result": "PERMIT"
+  },
+  "CC-5": {
+   "analogue": "A request that invokes no tool, where the leaf lists tools.",
+   "basis": "Section \"Grants and Attenuation\"",
+   "note": "tools binds only a request that invokes a tool; host, method and path still bind.",
+   "parent": {
+    "host": "api.b.example",
+    "tools": [
+     "export",
+     "list"
+    ]
+   },
+   "request": {
+    "tool": null
+   },
+   "result": "PERMIT"
+  },
+  "CC-6": {
+   "analogue": "A child drops tools its parent listed.",
+   "basis": "Section \"Grants and Attenuation\"",
+   "child": {
+    "host": "api.b.example"
+   },
+   "parent": {
+    "host": "api.b.example",
+    "tools": [
+     "export",
+     "list"
+    ]
+   },
+   "reason": "attenuation:tools",
+   "result": "DENY"
+  },
+  "CC-7": {
+   "analogue": "Replacing a bound with one value inside it.",
+   "basis": "Section \"Grants and Attenuation\"",
+   "note": "Each member has one fixed type, so a constraint is never replaced by one of another type.",
+   "result": "N/A"
+  },
+  "CC-8": {
+   "analogue": "Pinning a number by tightening both bounds.",
+   "basis": "Section \"Grants and Attenuation\"",
+   "note": "Numeric members are upper bounds only (max_body_bytes, max_calls, max_spend).",
+   "result": "N/A"
+  },
+  "CC-9": {
+   "analogue": "A child narrows methods to one element.",
+   "basis": "Section \"Grants and Attenuation\"",
+   "child": {
+    "host": "api.b.example",
+    "max_body_bytes": 100,
+    "methods": [
+     "GET"
+    ]
+   },
+   "parent": {
+    "host": "api.b.example",
+    "max_body_bytes": 100,
+    "methods": [
+     "GET",
+     "POST"
+    ]
+   },
+   "result": "PERMIT"
+  }
+ },
+ "comparison": "https://github.com/tenuo-ai/tenuo/tree/main/ietf/constraint-comparison",
+ "draft": "draft-le-agent-passport-01",
+ "implementation": "app/delegation.py (reference)"
+}

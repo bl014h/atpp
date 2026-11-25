@@ -250,6 +250,15 @@ it in [Sigstore Rekor](https://search.sigstore.dev/), a public transparency log 
 manifest itself is served at `https://trust.redthreadsec.com/v/log/<date>.json`. A swapped, backdated or
 rolled-back claim will not match a manifest whose hash is already in this repo's history and in Rekor.
 
+## Agent passport verifier binding
+
+`binding/` is the relying-party verifier for draft-le-agent-passport-01 (passports, delegation receipts, status,
+exposure bounds, the before-effect re-check) behind a small HTTP interface, for other implementations' test harnesses.
+`docker build -t redthread-verifier binding && docker run -p 8080:8080 redthread-verifier`; `GET /v1/info` names the
+version and source commit. `binding/samples/P1.json` to `P6.json` hold the exact calls and responses for the IETF 127
+scenarios P1 to P6. `vectors/delegation.json` pins path normalisation (`%7E` is `~`, `%2F` matches nothing, the host is
+case-insensitive), request matching and the attenuation table.
+
 ## Report a problem
 
 security@redthreadsec.com · [disclosure policy](https://trust.redthreadsec.com/security)
