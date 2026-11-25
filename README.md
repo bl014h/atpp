@@ -19,6 +19,7 @@ The scanner that produces these claims is open — its methodology, every check,
 ## Check the MCP servers you already installed
 
 ```bash
+python3 -m venv atpp-env && . atpp-env/bin/activate   # Windows: atpp-env\Scripts\activate
 pip install cryptography
 curl -sO https://raw.githubusercontent.com/bl014h/atpp/main/atpp.py
 python3 atpp.py check-config                  # Claude Desktop, Claude Code, Cursor, VS Code, Windsurf configs
@@ -132,6 +133,7 @@ the step that removes that key.
 ## Verify
 
 ```bash
+python3 -m venv atpp-env && . atpp-env/bin/activate   # Windows: atpp-env\Scripts\activate
 pip install cryptography
 curl -sO https://raw.githubusercontent.com/bl014h/atpp/main/atpp.py
 python3 atpp.py verify io.github.example/server      # the current claim for a registry listing

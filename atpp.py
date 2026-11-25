@@ -18,10 +18,16 @@ The public key is embedded below, so a hijacked domain cannot swap it.
   atpp profile <namespace>/<server> --policy org.json   # your policy as a ToolHive permission profile (egress, files)
   atpp manifest <YYYY-MM-DD> <out.json>     # the day's signed manifest, checked against the public log (what Sigstore co-signs)
 
-Exit codes: 0 valid and current · 1 invalid (signature, digest or badge mismatch) · 2 valid but
+verify exit codes: 0 valid and current · 1 invalid (signature, digest or badge mismatch) · 2 valid but
 expired · 3 incomplete or could not check (a required check could not run — never a pass).
+check-config exit codes: 0 every server scanned and none marked !! · 1 a server marked !! · 2 a server
+nobody has scanned (reported over 1) · 3 no MCP config found.
+gate exit codes: 0 allow · 1 deny (including when the claim could not be checked).
 
-Needs Python 3.9+ and `pip install cryptography`. Source and key history:
+Needs Python 3.9+ and cryptography. Install it in a virtual environment (Homebrew and most Linux Pythons
+refuse a plain pip install):
+  python3 -m venv atpp-env && . atpp-env/bin/activate && pip install cryptography
+Source and key history:
 https://github.com/bl014h/atpp
 """
 import base64, hashlib, json, os, re, shlex, sys, time, urllib.parse, urllib.request

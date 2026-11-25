@@ -43,6 +43,7 @@ animation; the canary checks every live badge for it hourly.
 ## Reproduce
 
 ```bash
+python3 -m venv atpp-env && . atpp-env/bin/activate   # Windows: atpp-env\Scripts\activate
 pip install cryptography
 python3 redteam.py                    # every attack against production, read-only
 python3 canary.py --sample 12 --camo  # the hourly health check
