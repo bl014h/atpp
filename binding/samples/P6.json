@@ -1,0 +1,174 @@
+{
+ "cases": [
+  {
+   "calls": [
+    {
+     "body": {
+      "documents": {
+       "controller": {
+        "https://acme.example": {
+         "issuers": [
+          "https://issuer.example"
+         ]
+        }
+       },
+       "issuer": {
+        "https://as.example": {
+         "issuer": "https://as.example",
+         "keys": {
+          "as1": {
+           "crv": "Ed25519",
+           "kty": "OKP",
+           "x": "dCK5iHWYBo4yxESKlJrbKQ0PTjW54BsO5fGh5gD-JnQ"
+          }
+         }
+        },
+        "https://issuer.example": {
+         "issuer": "https://issuer.example",
+         "keys": {
+          "k1": {
+           "crv": "Ed25519",
+           "kty": "OKP",
+           "x": "TLWr9q15-_WrvMr8wmnYXNJlHtS4hbWGnyQa7fCluik"
+          }
+         },
+         "policy": {
+          "runtime_attestation": true
+         }
+        }
+       },
+       "status": {
+        "https://issuer.example/status/1": "eyJhbGciOiJFZERTQSIsImtpZCI6ImsxIiwidHlwIjoic3RhdHVzbGlzdCtqd3QifQ.eyJpYXQiOjEwMDAwMDAsImlzcyI6Imh0dHBzOi8vaXNzdWVyLmV4YW1wbGUiLCJyZXZva2VkIjpbXSwidHRsIjo2MH0.Z1h6E1k29vELthhajzy-tt78MQMWmJRHIA1Lm-ZFdm_xhyJs92LPBj-ERcbhaj9AtgnlLxs2XMERDyqB2hPKCA"
+       }
+      },
+      "now": 1000000,
+      "policy": {
+       "authorization_servers": [
+        "https://as.example"
+       ],
+       "pinned": [
+        "sha-256:A-_EOOhh1xJyH36temSmUTICLqVxybB-nQ0ISuX3RMQ"
+       ],
+       "rp_id": "https://api.b.example"
+      },
+      "request": {
+       "authority": "api.b.example",
+       "headers": {
+        "agent-delegation": "\"eyJhbGciOiJFZERTQSIsImtpZCI6ImFzMSIsInR5cCI6ImFnZW50LWRlbGVnYXRpb24rand0In0.eyJhdWQiOlsiaHR0cHM6Ly9hcGkuYi5leGFtcGxlIl0sImNuZiI6eyJqa3QiOiJTTTZZRjV3bGtIaDNtZGdOQ1F4MldqTWJRcHpYSFZGN0hoeWhyOFBUQUdnIn0sImRsZ19ncmFudHMiOlt7Imhvc3QiOiJhcGkuYi5leGFtcGxlIiwibWF4X2JvZHlfYnl0ZXMiOjAsIm1ldGhvZHMiOlsiR0VUIl0sInBhdGhzIjpbIi9vcmRlcnMvKiJdLCJwb3J0Ijo0NDMsInRvb2xzIjpbImxpc3Rfb3JkZXJzIl19XSwiZXhwIjoxMDAwNjAwLCJpYXQiOjEwMDAwMDAsImlzcyI6Imh0dHBzOi8vYXMuZXhhbXBsZSIsImp0aSI6InIwIiwic3ViIjoidXNlcjphbGljZSJ9.CfwwsichNMAIEqK2pK8Vdfb187bM2nFO2CE1BUbUjzCLNhAseH0hyEpOmj1aexIwgkqdRNCXzlw8B2n6RzrDBw\"",
+        "agent-passport": "\"eyJhbGciOiJFZERTQSIsImtpZCI6ImsxIiwidHlwIjoiYWdlbnQtcGFzc3BvcnQrand0In0.eyJhZ2VudF9idWlsZCI6eyJjb25maWciOnsiYWxnIjoic2hhLTI1NiIsInZhbHVlIjoiYzBmZmVlIn0sIm1vZGVsIjoiYWNtZS9tMSIsInRvb2xzIjpbeyJhdHRlc3RhdGlvbiI6eyJhbGciOiJzaGEtMjU2IiwidmFsIjoiSmUxZGlpRVcyOFhpUWxoZnlzNmlzTUhweXpSWF9XeHNvQ3VoOXVuZExkdyJ9LCJpZCI6Im1jcDovL29yZGVycy5iLmV4YW1wbGUvbGlzdF9vcmRlcnMifV19LCJhZ2VudF9jb250cm9sbGVyIjoiaHR0cHM6Ly9hY21lLmV4YW1wbGUiLCJjbmYiOnsiandrIjp7ImNydiI6IkVkMjU1MTkiLCJrdHkiOiJPS1AiLCJ4IjoiTHQ0Uk4zMzR4dDBjM2FaT0hrN0htcFdWRTI4MHlKZGI1eWpDbnRSdkg5OCJ9fSwiZXhwIjoxMDAzNjAwLCJpYXQiOjEwMDAwMDAsImlzcyI6Imh0dHBzOi8vaXNzdWVyLmV4YW1wbGUiLCJqdGkiOiJqMCIsInN0YXR1cyI6eyJpbmRleCI6MCwidXJsIjoiaHR0cHM6Ly9pc3N1ZXIuZXhhbXBsZS9zdGF0dXMvMSJ9LCJzdWIiOiJ1cm46aWV0ZjpwYXJhbXM6b2F1dGg6andrLXRodW1icHJpbnQ6c2hhLTI1NjpTTTZZRjV3bGtIaDNtZGdOQ1F4MldqTWJRcHpYSFZGN0hoeWhyOFBUQUdnIn0.btvEHv41_DSXIT_Z8a1Eyt9CGwgQM6hmaJf2f8p1EHOLbqctOhncZrwMePkGvJQBchYdas87Fqhgcq6JurlzAg\"",
+        "signature": "sig1=:rqJU6T35-Z7R_ddml_zpIaYU7opIxS38l7aWLoKh0oBvDBRCrV5SYKmf-dmJVEIlxJXK8pUrwwqEXh0QHEIUAA:",
+        "signature-input": "sig1=(\"@method\" \"@authority\" \"@target-uri\" \"agent-passport\" \"agent-delegation\");created=1000000;expires=1000300;nonce=\"y1v0qYMOeeg6VjLRVKf14Q\";keyid=\"SM6YF5wlkHh3mdgNCQx2WjMbQpzXHVF7Hhyhr8PTAGg\";tag=\"agent-passport\""
+       },
+       "method": "GET",
+       "target_uri": "https://api.b.example/orders/1"
+      },
+      "session": "P6/same-tool",
+      "tool": "list_orders",
+      "tool_digest": {
+       "alg": "sha-256",
+       "val": "Je1diiEW28XiQlhfys6isMHpyzRX_WxsoCuh9undLdw"
+      },
+      "value": "high"
+     },
+     "expect": {
+      "chain": {
+       "receipts": [
+        "r0"
+       ],
+       "sub": "user:alice"
+      },
+      "decision": "allow",
+      "exposure": 120,
+      "exposure_by_event": {
+       "controller": 60,
+       "issuer_key": 60,
+       "status": 120
+      },
+      "reasons": [],
+      "record": []
+     },
+     "path": "/v1/verify"
+    }
+   ],
+   "case": "same-tool",
+   "expect_reason": "ok"
+  },
+  {
+   "calls": [
+    {
+     "body": {
+      "documents": {
+       "controller": {
+        "https://acme.example": {
+         "issuers": [
+          "https://issuer.example"
+         ]
+        }
+       },
+       "issuer": {
+        "https://issuer.example": {
+         "issuer": "https://issuer.example",
+         "keys": {
+          "k1": {
+           "crv": "Ed25519",
+           "kty": "OKP",
+           "x": "TLWr9q15-_WrvMr8wmnYXNJlHtS4hbWGnyQa7fCluik"
+          }
+         },
+         "policy": {
+          "runtime_attestation": true
+         }
+        }
+       },
+       "status": {
+        "https://issuer.example/status/1": "eyJhbGciOiJFZERTQSIsImtpZCI6ImsxIiwidHlwIjoic3RhdHVzbGlzdCtqd3QifQ.eyJpYXQiOjEwMDAwMDAsImlzcyI6Imh0dHBzOi8vaXNzdWVyLmV4YW1wbGUiLCJyZXZva2VkIjpbXSwidHRsIjo2MH0.Z1h6E1k29vELthhajzy-tt78MQMWmJRHIA1Lm-ZFdm_xhyJs92LPBj-ERcbhaj9AtgnlLxs2XMERDyqB2hPKCA"
+       }
+      },
+      "now": 1000000,
+      "policy": {
+       "authorization_servers": [
+        "https://as.example"
+       ],
+       "pinned": [
+        "sha-256:A-_EOOhh1xJyH36temSmUTICLqVxybB-nQ0ISuX3RMQ"
+       ],
+       "rp_id": "https://api.b.example"
+      },
+      "request": {
+       "authority": "api.b.example",
+       "headers": {
+        "agent-delegation": "\"eyJhbGciOiJFZERTQSIsImtpZCI6ImFzMSIsInR5cCI6ImFnZW50LWRlbGVnYXRpb24rand0In0.eyJhdWQiOlsiaHR0cHM6Ly9hcGkuYi5leGFtcGxlIl0sImNuZiI6eyJqa3QiOiJTTTZZRjV3bGtIaDNtZGdOQ1F4MldqTWJRcHpYSFZGN0hoeWhyOFBUQUdnIn0sImRsZ19ncmFudHMiOlt7Imhvc3QiOiJhcGkuYi5leGFtcGxlIiwibWF4X2JvZHlfYnl0ZXMiOjAsIm1ldGhvZHMiOlsiR0VUIl0sInBhdGhzIjpbIi9vcmRlcnMvKiJdLCJwb3J0Ijo0NDMsInRvb2xzIjpbImxpc3Rfb3JkZXJzIl19XSwiZXhwIjoxMDAwNjAwLCJpYXQiOjEwMDAwMDAsImlzcyI6Imh0dHBzOi8vYXMuZXhhbXBsZSIsImp0aSI6InIwIiwic3ViIjoidXNlcjphbGljZSJ9.CfwwsichNMAIEqK2pK8Vdfb187bM2nFO2CE1BUbUjzCLNhAseH0hyEpOmj1aexIwgkqdRNCXzlw8B2n6RzrDBw\"",
+        "agent-passport": "\"eyJhbGciOiJFZERTQSIsImtpZCI6ImsxIiwidHlwIjoiYWdlbnQtcGFzc3BvcnQrand0In0.eyJhZ2VudF9idWlsZCI6eyJjb25maWciOnsiYWxnIjoic2hhLTI1NiIsInZhbHVlIjoiYzBmZmVlIn0sIm1vZGVsIjoiYWNtZS9tMSIsInRvb2xzIjpbeyJhdHRlc3RhdGlvbiI6eyJhbGciOiJzaGEtMjU2IiwidmFsIjoiSmUxZGlpRVcyOFhpUWxoZnlzNmlzTUhweXpSWF9XeHNvQ3VoOXVuZExkdyJ9LCJpZCI6Im1jcDovL29yZGVycy5iLmV4YW1wbGUvbGlzdF9vcmRlcnMifV19LCJhZ2VudF9jb250cm9sbGVyIjoiaHR0cHM6Ly9hY21lLmV4YW1wbGUiLCJjbmYiOnsiandrIjp7ImNydiI6IkVkMjU1MTkiLCJrdHkiOiJPS1AiLCJ4IjoiTHQ0Uk4zMzR4dDBjM2FaT0hrN0htcFdWRTI4MHlKZGI1eWpDbnRSdkg5OCJ9fSwiZXhwIjoxMDAzNjAwLCJpYXQiOjEwMDAwMDAsImlzcyI6Imh0dHBzOi8vaXNzdWVyLmV4YW1wbGUiLCJqdGkiOiJqMCIsInN0YXR1cyI6eyJpbmRleCI6MCwidXJsIjoiaHR0cHM6Ly9pc3N1ZXIuZXhhbXBsZS9zdGF0dXMvMSJ9LCJzdWIiOiJ1cm46aWV0ZjpwYXJhbXM6b2F1dGg6andrLXRodW1icHJpbnQ6c2hhLTI1NjpTTTZZRjV3bGtIaDNtZGdOQ1F4MldqTWJRcHpYSFZGN0hoeWhyOFBUQUdnIn0.btvEHv41_DSXIT_Z8a1Eyt9CGwgQM6hmaJf2f8p1EHOLbqctOhncZrwMePkGvJQBchYdas87Fqhgcq6JurlzAg\"",
+        "signature": "sig1=:xv0z6uOrynZOdFp6EWqrsiI3wRBCpwBTUwE2vQ6xYqHhvP6g_dYttZpGnFJZVgeqzA0P2hZ94CCfnMy4D2EyAw:",
+        "signature-input": "sig1=(\"@method\" \"@authority\" \"@target-uri\" \"agent-passport\" \"agent-delegation\");created=1000000;expires=1000300;nonce=\"m-G25WDg2SlG5s63J4NIzQ\";keyid=\"SM6YF5wlkHh3mdgNCQx2WjMbQpzXHVF7Hhyhr8PTAGg\";tag=\"agent-passport\""
+       },
+       "method": "GET",
+       "target_uri": "https://api.b.example/orders/1"
+      },
+      "session": "P6/tool-swapped",
+      "tool": "list_orders",
+      "tool_digest": {
+       "alg": "sha-256",
+       "val": "FYqXpPdSDJHxtDK6zPXG9QBp_qfih4_iqDkSHlQHRl4"
+      },
+      "value": "high"
+     },
+     "expect": {
+      "chain": null,
+      "decision": "deny",
+      "exposure": null,
+      "exposure_by_event": null,
+      "reasons": [
+       "tool-digest-mismatch"
+      ],
+      "record": []
+     },
+     "path": "/v1/verify"
+    }
+   ],
+   "case": "tool-swapped",
+   "expect_reason": "tool-digest-mismatch"
+  }
+ ],
+ "scenario": "P6"
+}

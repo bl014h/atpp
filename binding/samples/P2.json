@@ -1,0 +1,262 @@
+{
+ "cases": [
+  {
+   "calls": [
+    {
+     "body": {
+      "between": {
+       "documents": {
+        "controller": {
+         "https://acme.example": {
+          "issuers": [
+           "https://issuer.example"
+          ]
+         }
+        },
+        "issuer": {},
+        "status": {
+         "https://issuer.example/status/1": "eyJhbGciOiJFZERTQSIsImtpZCI6ImsxIiwidHlwIjoic3RhdHVzbGlzdCtqd3QifQ.eyJpYXQiOjEwMDAwMDUsImlzcyI6Imh0dHBzOi8vaXNzdWVyLmV4YW1wbGUiLCJyZXZva2VkIjpbMF0sInR0bCI6NjB9.GSwXAxy9ooWYHeEmpxnyvhxYWowd0U6zrd306m544qpX2bo54OwBq9hbPJODRSrXV4wpMRmoMSlaEbOeM3vdDQ"
+        }
+       },
+       "now": 1000005
+      },
+      "case": "revoked-between-authorization-and-effect",
+      "documents": {
+       "controller": {
+        "https://acme.example": {
+         "issuers": [
+          "https://issuer.example"
+         ]
+        }
+       },
+       "issuer": {
+        "https://as.example": {
+         "issuer": "https://as.example",
+         "keys": {
+          "as1": {
+           "crv": "Ed25519",
+           "kty": "OKP",
+           "x": "dCK5iHWYBo4yxESKlJrbKQ0PTjW54BsO5fGh5gD-JnQ"
+          }
+         }
+        },
+        "https://issuer.example": {
+         "issuer": "https://issuer.example",
+         "keys": {
+          "k1": {
+           "crv": "Ed25519",
+           "kty": "OKP",
+           "x": "TLWr9q15-_WrvMr8wmnYXNJlHtS4hbWGnyQa7fCluik"
+          }
+         },
+         "policy": {
+          "runtime_attestation": true
+         }
+        }
+       },
+       "status": {
+        "https://issuer.example/status/1": "eyJhbGciOiJFZERTQSIsImtpZCI6ImsxIiwidHlwIjoic3RhdHVzbGlzdCtqd3QifQ.eyJpYXQiOjEwMDAwMDAsImlzcyI6Imh0dHBzOi8vaXNzdWVyLmV4YW1wbGUiLCJyZXZva2VkIjpbXSwidHRsIjo2MH0.Z1h6E1k29vELthhajzy-tt78MQMWmJRHIA1Lm-ZFdm_xhyJs92LPBj-ERcbhaj9AtgnlLxs2XMERDyqB2hPKCA"
+       }
+      },
+      "now": 1000000,
+      "policy": {
+       "authorization_servers": [
+        "https://as.example"
+       ],
+       "pinned": [
+        "sha-256:FC4B3bIIHPCB6565MimG-ZykoyvlzOs1-YhefokhYrw"
+       ],
+       "rp_id": "https://api.b.example"
+      },
+      "request": {
+       "authority": "api.b.example",
+       "headers": {
+        "agent-delegation": "\"eyJhbGciOiJFZERTQSIsImtpZCI6ImFzMSIsInR5cCI6ImFnZW50LWRlbGVnYXRpb24rand0In0.eyJhdWQiOlsiaHR0cHM6Ly9hcGkuYi5leGFtcGxlIl0sImNuZiI6eyJqa3QiOiJTTTZZRjV3bGtIaDNtZGdOQ1F4MldqTWJRcHpYSFZGN0hoeWhyOFBUQUdnIn0sImRsZ19ncmFudHMiOlt7Imhvc3QiOiJhcGkuYi5leGFtcGxlIiwibWF4X2JvZHlfYnl0ZXMiOjAsIm1ldGhvZHMiOlsiR0VUIl0sInBhdGhzIjpbIi9vcmRlcnMvKiJdLCJwb3J0Ijo0NDMsInRvb2xzIjpbImxpc3Rfb3JkZXJzIl19XSwiZXhwIjoxMDAwNjAwLCJpYXQiOjEwMDAwMDAsImlzcyI6Imh0dHBzOi8vYXMuZXhhbXBsZSIsImp0aSI6InIwIiwic3ViIjoidXNlcjphbGljZSJ9.CfwwsichNMAIEqK2pK8Vdfb187bM2nFO2CE1BUbUjzCLNhAseH0hyEpOmj1aexIwgkqdRNCXzlw8B2n6RzrDBw\", \"eyJhbGciOiJFZERTQSIsImtpZCI6IlNNNllGNXdsa0hoM21kZ05DUXgyV2pNYlFwelhIVkY3SGh5aHI4UFRBR2ciLCJ0eXAiOiJhZ2VudC1kZWxlZ2F0aW9uK2p3dCJ9.eyJhdWQiOlsiaHR0cHM6Ly9hcGkuYi5leGFtcGxlIl0sImNuZiI6eyJqa3QiOiJoX0lRZmxWUTJ0am1SQkNxc1AzckZ5dldvdk8xblNhU0FCYUpfV3hDSnhJIn0sImRsZ19ncmFudHMiOlt7Imhvc3QiOiJhcGkuYi5leGFtcGxlIiwibWF4X2JvZHlfYnl0ZXMiOjAsIm1ldGhvZHMiOlsiR0VUIl0sInBhdGhzIjpbIi9vcmRlcnMvMSJdLCJwb3J0Ijo0NDMsInRvb2xzIjpbImxpc3Rfb3JkZXJzIl19XSwiZGxnX3BhcmVudCI6eyJhbGciOiJzaGEtMjU2IiwidmFsIjoiVmFhaC1ic0tCd0dOSWJ3N2dMb3pEMTIzNzN3S25Td0NkRzVoZ2ZENnhQOCJ9LCJleHAiOjEwMDA2MDAsImlhdCI6MTAwMDAwMCwiaXNzIjoidXJuOmlldGY6cGFyYW1zOm9hdXRoOmp3ay10aHVtYnByaW50OnNoYS0yNTY6U002WUY1d2xrSGgzbWRnTkNReDJXak1iUXB6WEhWRjdIaHlocjhQVEFHZyIsImp0aSI6InIxIiwic3ViIjoidXNlcjphbGljZSJ9.T04quuL00nPlbRgbzryX9pvi2AgR6pS2D21VrsKhG3ug8HuWU3EnxnVhK8Ms28j1bqW6iG9caCJN6KWhuq-WCA\"",
+        "agent-passport": "\"eyJhbGciOiJFZERTQSIsImtpZCI6ImsxIiwidHlwIjoiYWdlbnQtcGFzc3BvcnQrand0In0.eyJhZ2VudF9idWlsZCI6eyJjb25maWciOnsiYWxnIjoic2hhLTI1NiIsInZhbHVlIjoiYzBmZmVlIn0sIm1vZGVsIjoiYWNtZS9tMSJ9LCJhZ2VudF9jb250cm9sbGVyIjoiaHR0cHM6Ly9hY21lLmV4YW1wbGUiLCJjbmYiOnsiandrIjp7ImNydiI6IkVkMjU1MTkiLCJrdHkiOiJPS1AiLCJ4IjoiTnlkT2JuUzIwMVNkODJhZUtJdWRYbkdNSjVCQjRUajNsbjhEVVNjM2UwVSJ9fSwiZXhwIjoxMDAzNjAwLCJpYXQiOjEwMDAwMDAsImlzcyI6Imh0dHBzOi8vaXNzdWVyLmV4YW1wbGUiLCJqdGkiOiJqMSIsInN0YXR1cyI6eyJpbmRleCI6MSwidXJsIjoiaHR0cHM6Ly9pc3N1ZXIuZXhhbXBsZS9zdGF0dXMvMSJ9LCJzdWIiOiJ1cm46aWV0ZjpwYXJhbXM6b2F1dGg6andrLXRodW1icHJpbnQ6c2hhLTI1NjpoX0lRZmxWUTJ0am1SQkNxc1AzckZ5dldvdk8xblNhU0FCYUpfV3hDSnhJIn0.GNbFxCc2MH_aVt1_bp6Jer0KXIO9C3Fepmpe3tgyuzPnfLM05CHBSli5xq9C6hzUOzrlSbdqPXVeF-8DV-qyDQ\", \"eyJhbGciOiJFZERTQSIsImtpZCI6ImsxIiwidHlwIjoiYWdlbnQtcGFzc3BvcnQrand0In0.eyJhZ2VudF9idWlsZCI6eyJjb25maWciOnsiYWxnIjoic2hhLTI1NiIsInZhbHVlIjoiYzBmZmVlIn0sIm1vZGVsIjoiYWNtZS9tMSJ9LCJhZ2VudF9jb250cm9sbGVyIjoiaHR0cHM6Ly9hY21lLmV4YW1wbGUiLCJjbmYiOnsiandrIjp7ImNydiI6IkVkMjU1MTkiLCJrdHkiOiJPS1AiLCJ4IjoiTHQ0Uk4zMzR4dDBjM2FaT0hrN0htcFdWRTI4MHlKZGI1eWpDbnRSdkg5OCJ9fSwiZXhwIjoxMDAzNjAwLCJpYXQiOjEwMDAwMDAsImlzcyI6Imh0dHBzOi8vaXNzdWVyLmV4YW1wbGUiLCJqdGkiOiJqMCIsInN0YXR1cyI6eyJpbmRleCI6MCwidXJsIjoiaHR0cHM6Ly9pc3N1ZXIuZXhhbXBsZS9zdGF0dXMvMSJ9LCJzdWIiOiJ1cm46aWV0ZjpwYXJhbXM6b2F1dGg6andrLXRodW1icHJpbnQ6c2hhLTI1NjpTTTZZRjV3bGtIaDNtZGdOQ1F4MldqTWJRcHpYSFZGN0hoeWhyOFBUQUdnIn0.1lwE9GEDUyUYUK9_bomj8g4AGHidWBfGxsbbarIAxdnaKjXzd88FbQAcNPFpPFnqyPg7oXU6XSqNZXdhvxSBDg\"",
+        "signature": "sig1=:8qzSaC84lMPVfb26Mvhqf4sMxvGKi771zQ2q0ZmLsgJ7Vhqhmm7JCrinXn-sF012C2xy_VRgbB7w5GOMc-ugDQ:",
+        "signature-input": "sig1=(\"@method\" \"@authority\" \"@target-uri\" \"agent-passport\" \"agent-delegation\");created=1000000;expires=1000300;nonce=\"y4QLoSVDNNoSLyXJXJsajw\";keyid=\"h_IQflVQ2tjmRBCqsP3rFyvWovO1nSaSABaJ_WxCJxI\";tag=\"agent-passport\""
+       },
+       "method": "GET",
+       "target_uri": "https://api.b.example/orders/1"
+      },
+      "scenario": "P2",
+      "session": "P2/revoked-between-authorization-and-effect",
+      "tool": "list_orders",
+      "value": "high"
+     },
+     "expect": {
+      "effect": "none",
+      "lines": [
+       {
+        "actor": "rp-verifier",
+        "bound_by_event": {
+         "controller": 60,
+         "issuer_key": 60,
+         "status": 120
+        },
+        "bound_s": 120,
+        "case": "revoked-between-authorization-and-effect",
+        "check": "authorize",
+        "clock": "harness",
+        "decision": "allow",
+        "domain": "B",
+        "effect": "pending",
+        "hop": "E",
+        "impl": "redthread",
+        "reason": "ok",
+        "scenario": "P2",
+        "seq": 1,
+        "ts": 1000000,
+        "txn_id": "t1"
+       },
+       {
+        "actor": "rp-verifier",
+        "bound_s": null,
+        "case": "revoked-between-authorization-and-effect",
+        "check": "before-effect",
+        "clock": "harness",
+        "decision": "deny",
+        "domain": "B",
+        "effect": "none",
+        "hop": "E",
+        "impl": "redthread",
+        "reason": "revoked",
+        "scenario": "P2",
+        "seq": 2,
+        "ts": 1000005,
+        "txn_id": "t1"
+       }
+      ]
+     },
+     "path": "/v1/run"
+    }
+   ],
+   "case": "revoked-between-authorization-and-effect",
+   "expect_reason": "status-revoked"
+  },
+  {
+   "calls": [
+    {
+     "body": {
+      "case": "no-revocation",
+      "documents": {
+       "controller": {
+        "https://acme.example": {
+         "issuers": [
+          "https://issuer.example"
+         ]
+        }
+       },
+       "issuer": {
+        "https://as.example": {
+         "issuer": "https://as.example",
+         "keys": {
+          "as1": {
+           "crv": "Ed25519",
+           "kty": "OKP",
+           "x": "dCK5iHWYBo4yxESKlJrbKQ0PTjW54BsO5fGh5gD-JnQ"
+          }
+         }
+        },
+        "https://issuer.example": {
+         "issuer": "https://issuer.example",
+         "keys": {
+          "k1": {
+           "crv": "Ed25519",
+           "kty": "OKP",
+           "x": "TLWr9q15-_WrvMr8wmnYXNJlHtS4hbWGnyQa7fCluik"
+          }
+         },
+         "policy": {
+          "runtime_attestation": true
+         }
+        }
+       },
+       "status": {
+        "https://issuer.example/status/1": "eyJhbGciOiJFZERTQSIsImtpZCI6ImsxIiwidHlwIjoic3RhdHVzbGlzdCtqd3QifQ.eyJpYXQiOjEwMDAwMDAsImlzcyI6Imh0dHBzOi8vaXNzdWVyLmV4YW1wbGUiLCJyZXZva2VkIjpbXSwidHRsIjo2MH0.Z1h6E1k29vELthhajzy-tt78MQMWmJRHIA1Lm-ZFdm_xhyJs92LPBj-ERcbhaj9AtgnlLxs2XMERDyqB2hPKCA"
+       }
+      },
+      "now": 1000000,
+      "policy": {
+       "authorization_servers": [
+        "https://as.example"
+       ],
+       "pinned": [
+        "sha-256:FC4B3bIIHPCB6565MimG-ZykoyvlzOs1-YhefokhYrw"
+       ],
+       "rp_id": "https://api.b.example"
+      },
+      "request": {
+       "authority": "api.b.example",
+       "headers": {
+        "agent-delegation": "\"eyJhbGciOiJFZERTQSIsImtpZCI6ImFzMSIsInR5cCI6ImFnZW50LWRlbGVnYXRpb24rand0In0.eyJhdWQiOlsiaHR0cHM6Ly9hcGkuYi5leGFtcGxlIl0sImNuZiI6eyJqa3QiOiJTTTZZRjV3bGtIaDNtZGdOQ1F4MldqTWJRcHpYSFZGN0hoeWhyOFBUQUdnIn0sImRsZ19ncmFudHMiOlt7Imhvc3QiOiJhcGkuYi5leGFtcGxlIiwibWF4X2JvZHlfYnl0ZXMiOjAsIm1ldGhvZHMiOlsiR0VUIl0sInBhdGhzIjpbIi9vcmRlcnMvKiJdLCJwb3J0Ijo0NDMsInRvb2xzIjpbImxpc3Rfb3JkZXJzIl19XSwiZXhwIjoxMDAwNjAwLCJpYXQiOjEwMDAwMDAsImlzcyI6Imh0dHBzOi8vYXMuZXhhbXBsZSIsImp0aSI6InIwIiwic3ViIjoidXNlcjphbGljZSJ9.CfwwsichNMAIEqK2pK8Vdfb187bM2nFO2CE1BUbUjzCLNhAseH0hyEpOmj1aexIwgkqdRNCXzlw8B2n6RzrDBw\", \"eyJhbGciOiJFZERTQSIsImtpZCI6IlNNNllGNXdsa0hoM21kZ05DUXgyV2pNYlFwelhIVkY3SGh5aHI4UFRBR2ciLCJ0eXAiOiJhZ2VudC1kZWxlZ2F0aW9uK2p3dCJ9.eyJhdWQiOlsiaHR0cHM6Ly9hcGkuYi5leGFtcGxlIl0sImNuZiI6eyJqa3QiOiJoX0lRZmxWUTJ0am1SQkNxc1AzckZ5dldvdk8xblNhU0FCYUpfV3hDSnhJIn0sImRsZ19ncmFudHMiOlt7Imhvc3QiOiJhcGkuYi5leGFtcGxlIiwibWF4X2JvZHlfYnl0ZXMiOjAsIm1ldGhvZHMiOlsiR0VUIl0sInBhdGhzIjpbIi9vcmRlcnMvMSJdLCJwb3J0Ijo0NDMsInRvb2xzIjpbImxpc3Rfb3JkZXJzIl19XSwiZGxnX3BhcmVudCI6eyJhbGciOiJzaGEtMjU2IiwidmFsIjoiVmFhaC1ic0tCd0dOSWJ3N2dMb3pEMTIzNzN3S25Td0NkRzVoZ2ZENnhQOCJ9LCJleHAiOjEwMDA2MDAsImlhdCI6MTAwMDAwMCwiaXNzIjoidXJuOmlldGY6cGFyYW1zOm9hdXRoOmp3ay10aHVtYnByaW50OnNoYS0yNTY6U002WUY1d2xrSGgzbWRnTkNReDJXak1iUXB6WEhWRjdIaHlocjhQVEFHZyIsImp0aSI6InIxIiwic3ViIjoidXNlcjphbGljZSJ9.T04quuL00nPlbRgbzryX9pvi2AgR6pS2D21VrsKhG3ug8HuWU3EnxnVhK8Ms28j1bqW6iG9caCJN6KWhuq-WCA\"",
+        "agent-passport": "\"eyJhbGciOiJFZERTQSIsImtpZCI6ImsxIiwidHlwIjoiYWdlbnQtcGFzc3BvcnQrand0In0.eyJhZ2VudF9idWlsZCI6eyJjb25maWciOnsiYWxnIjoic2hhLTI1NiIsInZhbHVlIjoiYzBmZmVlIn0sIm1vZGVsIjoiYWNtZS9tMSJ9LCJhZ2VudF9jb250cm9sbGVyIjoiaHR0cHM6Ly9hY21lLmV4YW1wbGUiLCJjbmYiOnsiandrIjp7ImNydiI6IkVkMjU1MTkiLCJrdHkiOiJPS1AiLCJ4IjoiTnlkT2JuUzIwMVNkODJhZUtJdWRYbkdNSjVCQjRUajNsbjhEVVNjM2UwVSJ9fSwiZXhwIjoxMDAzNjAwLCJpYXQiOjEwMDAwMDAsImlzcyI6Imh0dHBzOi8vaXNzdWVyLmV4YW1wbGUiLCJqdGkiOiJqMSIsInN0YXR1cyI6eyJpbmRleCI6MSwidXJsIjoiaHR0cHM6Ly9pc3N1ZXIuZXhhbXBsZS9zdGF0dXMvMSJ9LCJzdWIiOiJ1cm46aWV0ZjpwYXJhbXM6b2F1dGg6andrLXRodW1icHJpbnQ6c2hhLTI1NjpoX0lRZmxWUTJ0am1SQkNxc1AzckZ5dldvdk8xblNhU0FCYUpfV3hDSnhJIn0.GNbFxCc2MH_aVt1_bp6Jer0KXIO9C3Fepmpe3tgyuzPnfLM05CHBSli5xq9C6hzUOzrlSbdqPXVeF-8DV-qyDQ\", \"eyJhbGciOiJFZERTQSIsImtpZCI6ImsxIiwidHlwIjoiYWdlbnQtcGFzc3BvcnQrand0In0.eyJhZ2VudF9idWlsZCI6eyJjb25maWciOnsiYWxnIjoic2hhLTI1NiIsInZhbHVlIjoiYzBmZmVlIn0sIm1vZGVsIjoiYWNtZS9tMSJ9LCJhZ2VudF9jb250cm9sbGVyIjoiaHR0cHM6Ly9hY21lLmV4YW1wbGUiLCJjbmYiOnsiandrIjp7ImNydiI6IkVkMjU1MTkiLCJrdHkiOiJPS1AiLCJ4IjoiTHQ0Uk4zMzR4dDBjM2FaT0hrN0htcFdWRTI4MHlKZGI1eWpDbnRSdkg5OCJ9fSwiZXhwIjoxMDAzNjAwLCJpYXQiOjEwMDAwMDAsImlzcyI6Imh0dHBzOi8vaXNzdWVyLmV4YW1wbGUiLCJqdGkiOiJqMCIsInN0YXR1cyI6eyJpbmRleCI6MCwidXJsIjoiaHR0cHM6Ly9pc3N1ZXIuZXhhbXBsZS9zdGF0dXMvMSJ9LCJzdWIiOiJ1cm46aWV0ZjpwYXJhbXM6b2F1dGg6andrLXRodW1icHJpbnQ6c2hhLTI1NjpTTTZZRjV3bGtIaDNtZGdOQ1F4MldqTWJRcHpYSFZGN0hoeWhyOFBUQUdnIn0.1lwE9GEDUyUYUK9_bomj8g4AGHidWBfGxsbbarIAxdnaKjXzd88FbQAcNPFpPFnqyPg7oXU6XSqNZXdhvxSBDg\"",
+        "signature": "sig1=:tGdVslsOB5Yyk6Ad42Yw79XZwNbS9ZM5TAGUfHayIzA3LkEkfYnlQlq5bCu7qFZJ_h_KE5mowYieE8c2y75KCw:",
+        "signature-input": "sig1=(\"@method\" \"@authority\" \"@target-uri\" \"agent-passport\" \"agent-delegation\");created=1000000;expires=1000300;nonce=\"bgksZk0pLdokqQZM_m-xMw\";keyid=\"h_IQflVQ2tjmRBCqsP3rFyvWovO1nSaSABaJ_WxCJxI\";tag=\"agent-passport\""
+       },
+       "method": "GET",
+       "target_uri": "https://api.b.example/orders/1"
+      },
+      "scenario": "P2",
+      "session": "P2/no-revocation",
+      "tool": "list_orders",
+      "value": "high"
+     },
+     "expect": {
+      "effect": "ran",
+      "lines": [
+       {
+        "actor": "rp-verifier",
+        "bound_by_event": {
+         "controller": 60,
+         "issuer_key": 60,
+         "status": 120
+        },
+        "bound_s": 120,
+        "case": "no-revocation",
+        "check": "authorize",
+        "clock": "harness",
+        "decision": "allow",
+        "domain": "B",
+        "effect": "pending",
+        "hop": "E",
+        "impl": "redthread",
+        "reason": "ok",
+        "scenario": "P2",
+        "seq": 1,
+        "ts": 1000000,
+        "txn_id": "t1"
+       },
+       {
+        "actor": "rp-verifier",
+        "bound_by_event": {
+         "controller": 60,
+         "issuer_key": 60,
+         "status": 120
+        },
+        "bound_s": 120,
+        "case": "no-revocation",
+        "check": "before-effect",
+        "clock": "harness",
+        "decision": "allow",
+        "domain": "B",
+        "effect": "ran",
+        "hop": "E",
+        "impl": "redthread",
+        "reason": "ok",
+        "scenario": "P2",
+        "seq": 2,
+        "ts": 1000000,
+        "txn_id": "t1"
+       }
+      ]
+     },
+     "path": "/v1/run"
+    }
+   ],
+   "case": "no-revocation",
+   "expect_reason": "ok"
+  }
+ ],
+ "scenario": "P2"
+}
